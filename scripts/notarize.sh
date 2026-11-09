@@ -11,11 +11,10 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 cd "$REPO_ROOT"
+# shellcheck source=scripts/lib.sh
+source scripts/lib.sh
 
-if [[ -z "${VUTUSI_ASC_KEY_ID:-}" && -f .envrc ]]; then
-  # shellcheck disable=SC1091
-  source .envrc
-fi
+require_asc_key
 key=(--key "$VUTUSI_ASC_KEY_PATH" --key-id "$VUTUSI_ASC_KEY_ID" --issuer "$VUTUSI_ASC_ISSUER")
 
 app=build/release/vutusi.app
