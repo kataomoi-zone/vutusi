@@ -1,0 +1,23 @@
+name: webtracking
+options:
+  deploymentTarget:
+    macOS: "15.0"
+targets:
+  webtracking:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+      - path: web
+        type: folder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kawarimidoll.vutusi.spike.webtracking
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSCameraUsageDescription: Spike B tracks the camera with MediaPipe.
+        INFOPLIST_KEY_LSUIElement: YES
+        SWIFT_VERSION: "6.0"
+        # Ad-hoc signed spike: no team, no hardened runtime, so no camera entitlement is needed.
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ENABLE_HARDENED_RUNTIME: NO
