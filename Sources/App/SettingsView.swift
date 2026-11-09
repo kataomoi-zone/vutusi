@@ -1,4 +1,5 @@
 import AVFoundation
+import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
@@ -31,6 +32,7 @@ struct SettingsView: View {
         .frame(height: 400)
         .onAppear {
             cameras = Self.physicalCameras()
+            opensAtLogin = SMAppService.mainApp.status == .enabled
             // Tracking and rendering run while the preview shows, and stop when it closes.
             runtime.isPreviewOpen = true
         }
@@ -111,12 +113,29 @@ struct SettingsView: View {
                     }
                 }
             }
+            Section {
+                Toggle("Open at Login", isOn: openAtLogin)
+            }
             HStack {
                 Spacer()
                 Button("Reset to Defaults") { avatar.resetSettings() }
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// Mirrors the system's login item rather than a setting of its own, read again each
+    /// time the window opens, so turning vutusi off in System Settings > General > Login
+    /// Items shows here too.
+    @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
+
+    private var openAtLogin: Binding<Bool> {
+        Binding {
+            opensAtLogin
+        } set: { enabled in
+            try? enabled ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
+            opensAtLogin = SMAppService.mainApp.status == .enabled
+        }
     }
 
     private var backgroundColor: Binding<Color> {
