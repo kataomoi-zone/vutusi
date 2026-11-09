@@ -18,6 +18,17 @@ struct Framing: Equatable {
     var offset: Float = 0
 }
 
+/// The light MToon shades the model with.
+struct Light: Equatable {
+    /// Degrees from straight in front of the model: positive comes from the viewer's right.
+    var azimuth: Float = 15
+    /// Degrees above the horizon.
+    var elevation: Float = 25
+    /// sRGB components.
+    var color: [Float] = [1, 1, 1]
+    var intensity: Float = 1
+}
+
 /// Draws the avatar offscreen into IOSurface-backed BGRA pixel buffers, the format the
 /// Camera Extension streams, at a fixed rate while running.
 @MainActor
@@ -47,6 +58,10 @@ final class AvatarRenderer {
 
     var framing = Framing() {
         didSet { if let model { frame(model) } }
+    }
+
+    var light = Light() {
+        didSet { if let model { shade(model) } }
     }
 
     private let width = Int(CameraIdentifiers.width)
@@ -89,7 +104,7 @@ final class AvatarRenderer {
         ).loadEntity()
         guard generation == loadGeneration else { return }
         model.isAutomaticUpdateEnabled = false
-        model.setMToonLightDirection(normalize(-model.frontDirection + SIMD3<Float>(0.3, -0.5, 0)))
+        shade(model)
         model.update(deltaTime: 0)
 
         if let old = self.model { renderer.entities.remove(old) }
@@ -161,6 +176,20 @@ final class AvatarRenderer {
         backgroundTexture = texture
         // Draw over what the target already holds: the image, copied in each frame.
         renderer.cameraSettings.colorBackground = .outputTexture()
+    }
+
+    private func shade(_ model: VRMEntity) {
+        // Where the light comes from, in the model's frame: its front, the viewer's right
+        // (the model's left), and up. MToon takes the direction from the surface toward
+        // the light, so the source direction goes in as is.
+        let front = model.frontDirection
+        let up = SIMD3<Float>(0, 1, 0)
+        let right = cross(up, front)
+        let azimuth = light.azimuth * .pi / 180, elevation = light.elevation * .pi / 180
+        let source = front * cos(azimuth) * cos(elevation) + right * sin(azimuth) * cos(elevation) + up * sin(elevation)
+        model.setMToonLightDirection(normalize(source))
+        let c = light.color
+        model.setMToonLightColor(SIMD3<Float>(c[0], c[1], c[2]) * light.intensity)
     }
 
     /// Keeps the top of the model near the top of the frame and scales from the

@@ -55,6 +55,25 @@ final class AvatarController {
         }
     }
 
+    var light: Light = {
+        let defaults = UserDefaults.standard
+        var light = Light()
+        if let v = defaults.object(forKey: "lightAzimuth") as? Float { light.azimuth = v }
+        if let v = defaults.object(forKey: "lightElevation") as? Float { light.elevation = v }
+        if let v = defaults.array(forKey: "lightColor") as? [Float], v.count == 3 { light.color = v }
+        if let v = defaults.object(forKey: "lightIntensity") as? Float { light.intensity = v }
+        return light
+    }() {
+        didSet {
+            let defaults = UserDefaults.standard
+            defaults.set(light.azimuth, forKey: "lightAzimuth")
+            defaults.set(light.elevation, forKey: "lightElevation")
+            defaults.set(light.color, forKey: "lightColor")
+            defaults.set(light.intensity, forKey: "lightIntensity")
+            renderer?.light = light
+        }
+    }
+
     var framing = Framing(
         zoom: UserDefaults.standard.object(forKey: "framingZoom") as? Float ?? 1,
         offset: UserDefaults.standard.float(forKey: "framingOffset")
@@ -92,6 +111,7 @@ final class AvatarController {
         smoothing = Self.defaultSmoothing
         trackedParts = Set(TrackingPart.allCases)
         framing = Framing()
+        light = Light()
         removeBackgroundImage()
         backgroundColor = Self.defaultBackgroundColor
     }
@@ -164,6 +184,7 @@ final class AvatarController {
         renderer?.smoothing = smoothing
         renderer?.trackedParts = trackedParts
         renderer?.framing = framing
+        renderer?.light = light
         applyBackground()
 
         // Earlier builds remembered a path outside the library; bring that model in once.

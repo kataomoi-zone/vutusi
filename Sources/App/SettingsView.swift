@@ -103,6 +103,31 @@ struct SettingsView: View {
                     Slider(value: $avatar.framing.offset, in: -0.5...0.5)
                 }
             }
+            Section("Light") {
+                LabeledContent("Direction") {
+                    Slider(value: $avatar.light.azimuth, in: -90...90) {
+                    } minimumValueLabel: {
+                        Text("Left")
+                    } maximumValueLabel: {
+                        Text("Right")
+                    }
+                }
+                LabeledContent("Height") {
+                    Slider(value: $avatar.light.elevation, in: -30...80) {
+                    } minimumValueLabel: {
+                        Text("Low")
+                    } maximumValueLabel: {
+                        Text("High")
+                    }
+                }
+                ColorPicker("Color", selection: lightColor, supportsOpacity: false)
+                LabeledContent("Intensity") {
+                    Slider(value: $avatar.light.intensity, in: 0.2...2)
+                }
+                Text("Models made with unlit materials ignore the light.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Background") {
                 ColorPicker("Color", selection: backgroundColor, supportsOpacity: false)
                     .disabled(!avatar.backgroundImagePath.isEmpty)
@@ -150,6 +175,16 @@ struct SettingsView: View {
             avatar.trackedParts.contains(part)
         } set: { on in
             if on { avatar.trackedParts.insert(part) } else { avatar.trackedParts.remove(part) }
+        }
+    }
+
+    private var lightColor: Binding<Color> {
+        Binding {
+            let c = avatar.light.color
+            return Color(.sRGB, red: Double(c[0]), green: Double(c[1]), blue: Double(c[2]))
+        } set: { color in
+            guard let srgb = NSColor(color).usingColorSpace(.sRGB) else { return }
+            avatar.light.color = [Float(srgb.redComponent), Float(srgb.greenComponent), Float(srgb.blueComponent)]
         }
     }
 
