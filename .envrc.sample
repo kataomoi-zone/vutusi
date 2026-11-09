@@ -1,0 +1,14 @@
+# App Store Connect API key for automatic signing (scripts/dev.sh) and,
+# later, notarization. Copy this file to .envrc, fill in the values, and
+# run `direnv allow`. .envrc is gitignored.
+#
+# Issue the key at https://appstoreconnect.apple.com/access/integrations/api
+# with the Admin role: a Developer-role key cannot create Bundle IDs or
+# provisioning profiles. The .p8 can be downloaded only once.
+
+# "Key ID" column of the key list
+export VUTUSI_ASC_KEY_ID=""
+# "Issuer ID" shown above the key list (UUID)
+export VUTUSI_ASC_ISSUER=""
+# Path to the downloaded .p8 (keep it outside the repo, chmod 600)
+export VUTUSI_ASC_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_XXXXXXXXXX.p8"

@@ -1,0 +1,41 @@
+name: vutusi
+options:
+  bundleIdPrefix: com.kawarimidoll
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    DEVELOPMENT_TEAM: 8QD5Y2QV2Q
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  vutusi:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kawarimidoll.vutusi
+        INFOPLIST_FILE: Resources/App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Resources/App/vutusi.entitlements
+    dependencies:
+      - target: VutusiCameraExtension
+  VutusiCameraExtension:
+    type: system-extension
+    platform: macOS
+    sources:
+      - Sources/CameraExtension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kawarimidoll.vutusi.CameraExtension
+        # OSSystemExtensionRequest looks up Contents/Library/SystemExtensions/<bundle id>.systemextension.
+        PRODUCT_NAME: $(PRODUCT_BUNDLE_IDENTIFIER)
+        INFOPLIST_FILE: Resources/CameraExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Resources/CameraExtension/CameraExtension.entitlements
+        ENABLE_APP_SANDBOX: YES
+        REGISTER_APP_GROUPS: YES
