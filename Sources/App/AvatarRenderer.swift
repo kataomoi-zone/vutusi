@@ -91,6 +91,12 @@ final class AvatarRenderer {
         logger.info("loaded \(url.lastPathComponent, privacy: .public)")
     }
 
+    func unload() {
+        if let model { renderer.entities.remove(model) }
+        model = nil
+        applier = nil
+    }
+
     /// Poses the model from a tracking result; the next rendered frame shows it.
     func apply(_ result: HolisticResult, faceMetrics: [String: Float], jsLatencyMs: Double) {
         applier?.update(result, faceMetrics: faceMetrics)

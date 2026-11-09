@@ -35,7 +35,7 @@ struct VutusiApp: App {
 
 private struct MenuContent: View {
     let runtime: RuntimeState
-    let avatar: AvatarController
+    @Bindable var avatar: AvatarController
     let installer: ExtensionInstaller
     @Environment(\.openSettings) private var openSettings
 
@@ -44,7 +44,10 @@ private struct MenuContent: View {
         Text("Model: \(avatar.status)")
         Text("Camera Extension: \(installer.status)")
         Divider()
-        Button("Open VRM…") { avatar.chooseModel() }
+        Picker("Model", selection: $avatar.modelName) {
+            ForEach(avatar.models, id: \.self) { Text($0).tag($0) }
+        }
+        Button("Add Model…") { avatar.addModel() }
         Button("Settings…") {
             // A menu bar app is not active, so its settings window would open behind others.
             NSApp.activate()

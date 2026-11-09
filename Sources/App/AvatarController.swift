@@ -1,9 +1,8 @@
 import AppKit
 import UniformTypeIdentifiers
 
-/// Owns the renderer, the tracker that drives it, the chosen model and the tracking
-/// settings, which are kept in UserDefaults.
-/// LIMITATION: remembers the model by its path; Phase 4 copies models into Application Support.
+/// Owns the renderer, the tracker that drives it, the model library and the settings,
+/// which are kept in UserDefaults.
 @MainActor
 @Observable
 final class AvatarController {
@@ -11,7 +10,19 @@ final class AvatarController {
     @ObservationIgnored let renderer: AvatarRenderer?
     @ObservationIgnored let preview = Preview()
     @ObservationIgnored private(set) var tracker: WebTracker?
-    @ObservationIgnored private let modelPathKey = "modelPath"
+    @ObservationIgnored private let library = ModelLibrary()
+
+    /// The models in the library.
+    private(set) var models: [String] = []
+
+    /// The model shown, by its name in the library; empty for none.
+    var modelName = UserDefaults.standard.string(forKey: "modelName") ?? "" {
+        didSet {
+            guard modelName != oldValue else { return }
+            UserDefaults.standard.set(modelName, forKey: "modelName")
+            loadModel()
+        }
+    }
 
     /// The camera to track by name; empty picks one automatically.
     var cameraName = UserDefaults.standard.string(forKey: "cameraName") ?? "" {
@@ -48,8 +59,7 @@ final class AvatarController {
         }
     }
 
-    /// Shown instead of the color when set.
-    /// LIMITATION: remembered by path, like the model.
+    /// Shown instead of the color when set; the app's own copy (see setBackgroundImage).
     var backgroundImagePath = UserDefaults.standard.string(forKey: "backgroundImagePath") ?? "" {
         didSet {
             UserDefaults.standard.set(backgroundImagePath, forKey: "backgroundImagePath")
@@ -65,7 +75,7 @@ final class AvatarController {
         cameraName = ""
         smoothing = Self.defaultSmoothing
         framing = Framing()
-        backgroundImagePath = ""
+        removeBackgroundImage()
         backgroundColor = Self.defaultBackgroundColor
     }
 
@@ -73,7 +83,32 @@ final class AvatarController {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image]
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        backgroundImagePath = url.path
+        do {
+            try setBackgroundImage(copying: url)
+        } catch {
+            status = "background image failed: \(error.localizedDescription)"
+        }
+    }
+
+    func removeBackgroundImage() {
+        try? setBackgroundImage(copying: nil)
+    }
+
+    /// Keeps one copy, Application Support/vutusi/background.<ext>, replacing the last.
+    private func setBackgroundImage(copying source: URL?) throws {
+        let fileManager = FileManager.default
+        let old = (try? fileManager.contentsOfDirectory(at: AppFiles.directory, includingPropertiesForKeys: nil)) ?? []
+        for file in old where file.lastPathComponent.hasPrefix("background.") {
+            try fileManager.removeItem(at: file)
+        }
+        guard let source else {
+            backgroundImagePath = ""
+            return
+        }
+        try fileManager.createDirectory(at: AppFiles.directory, withIntermediateDirectories: true)
+        let copy = AppFiles.directory.appending(path: "background.\(source.pathExtension)")
+        try fileManager.copyItem(at: source, to: copy)
+        backgroundImagePath = copy.path
     }
 
     private func applyBackground() {
@@ -108,29 +143,65 @@ final class AvatarController {
         renderer?.smoothing = smoothing
         renderer?.framing = framing
         applyBackground()
-        if let path = UserDefaults.standard.string(forKey: modelPathKey) {
-            load(URL(fileURLWithPath: path))
+
+        // Earlier builds remembered a path outside the library; bring that model in once.
+        if let path = UserDefaults.standard.string(forKey: "modelPath") {
+            UserDefaults.standard.removeObject(forKey: "modelPath")
+            if modelName.isEmpty, let name = try? library.add(URL(fileURLWithPath: path)) {
+                modelName = name
+            }
+        }
+        models = library.names()
+        loadModel()
+    }
+
+    /// Copies a VRM into the library and shows it.
+    func addModel() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "vrm") ?? .data]
+        panel.allowsMultipleSelection = true
+        NSApp.activate()
+        guard panel.runModal() == .OK else { return }
+        var added: String?
+        for url in panel.urls {
+            do {
+                added = try library.add(url)
+            } catch {
+                status = "adding \(url.lastPathComponent) failed: \(error.localizedDescription)"
+            }
+        }
+        models = library.names()
+        if let added {
+            if added == modelName { loadModel() } else { modelName = added }
         }
     }
 
-    func chooseModel() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [UTType(filenameExtension: "vrm") ?? .data]
-        NSApp.activate()
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        UserDefaults.standard.set(url.path, forKey: modelPathKey)
-        load(url)
+    /// Deletes the library's copy; the original file stays where it was.
+    func removeModel(_ name: String) {
+        do {
+            try library.remove(name)
+        } catch {
+            status = "removing \(name) failed: \(error.localizedDescription)"
+        }
+        models = library.names()
+        if name == modelName { modelName = models.first ?? "" }
     }
 
-    private func load(_ url: URL) {
+    private func loadModel() {
         guard let renderer else { return }
-        status = "loading \(url.lastPathComponent)"
+        guard !modelName.isEmpty else {
+            renderer.unload()
+            status = "none"
+            return
+        }
+        let name = modelName
+        status = "loading \(name)"
         Task {
             do {
-                try await renderer.load(url)
-                status = url.lastPathComponent
+                try await renderer.load(library.url(for: name))
+                if name == modelName { status = name }
             } catch {
-                status = "failed: \(error.localizedDescription)"
+                status = "\(name) failed: \(error.localizedDescription)"
             }
         }
     }

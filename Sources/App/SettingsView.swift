@@ -39,6 +39,18 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
+            Section("Model") {
+                Picker("Model", selection: $avatar.modelName) {
+                    if avatar.models.isEmpty { Text("None").tag("") }
+                    ForEach(avatar.models, id: \.self) { Text($0).tag($0) }
+                }
+                HStack {
+                    Spacer()
+                    Button("Remove") { avatar.removeModel(avatar.modelName) }
+                        .disabled(avatar.modelName.isEmpty)
+                    Button("Add…") { avatar.addModel() }
+                }
+            }
             Section("Tracking") {
                 Picker("Camera", selection: $avatar.cameraName) {
                     Text("Automatic").tag("")
@@ -85,7 +97,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                         Button("Choose…") { avatar.chooseBackgroundImage() }
                         if !avatar.backgroundImagePath.isEmpty {
-                            Button("Remove") { avatar.backgroundImagePath = "" }
+                            Button("Remove") { avatar.removeBackgroundImage() }
                         }
                     }
                 }
