@@ -12,6 +12,10 @@ settings:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
+packages:
+  VRMKit:
+    url: https://github.com/tattn/VRMKit
+    revision: 1afe8811370d05d50367a226bc069c3ab62fd8f2
 targets:
   vutusi:
     type: application
@@ -26,6 +30,8 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Resources/App/vutusi.entitlements
     dependencies:
       - target: VutusiCameraExtension
+      - package: VRMKit
+        product: VRMRealityKit
   VutusiCameraExtension:
     type: system-extension
     platform: macOS

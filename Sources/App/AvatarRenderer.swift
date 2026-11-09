@@ -1,0 +1,168 @@
+import CoreVideo
+import Foundation
+import Metal
+import RealityKit
+import VRMRealityKit
+import os
+
+private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "AvatarRenderer")
+
+/// Draws the avatar offscreen into IOSurface-backed BGRA pixel buffers, the format the
+/// Camera Extension streams, at a fixed rate while running.
+@MainActor
+final class AvatarRenderer {
+    private let device = MTLCreateSystemDefaultDevice()!
+    private let renderer: RealityRenderer
+    private let camera = Entity()
+    private var pool: CVPixelBufferPool!
+    private var model: VRMEntity?
+    private var timer: Timer?
+    private var frameInFlight = false
+    private let onFrame: @Sendable (CVPixelBuffer) -> Void
+
+    private let width = Int(CameraIdentifiers.width)
+    private let height = Int(CameraIdentifiers.height)
+
+    init(onFrame: @escaping @Sendable (CVPixelBuffer) -> Void) throws {
+        self.onFrame = onFrame
+        renderer = try RealityRenderer()
+        // Colors as they are: MToon is drawn for the camera image, not a photographic scene.
+        renderer.cameraSettings.isToneMappingEnabled = false
+        renderer.cameraSettings.colorBackground = .color(Self.background(red: 0.2, green: 0.6, blue: 0.4))
+
+        var cameraComponent = PerspectiveCameraComponent(near: 0.01, far: 100, fieldOfViewInDegrees: 30)
+        cameraComponent.fieldOfViewOrientation = .vertical
+        camera.components.set(cameraComponent)
+        renderer.entities.append(camera)
+        renderer.activeCamera = camera
+
+        let attributes: NSDictionary = [
+            kCVPixelBufferWidthKey: width,
+            kCVPixelBufferHeightKey: height,
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferIOSurfacePropertiesKey: [:] as NSDictionary,
+            kCVPixelBufferMetalCompatibilityKey: true,
+        ]
+        CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, attributes, &pool)
+    }
+
+    func load(_ url: URL) async throws {
+        let data = try bakeEmissiveStrength(Data(contentsOf: url))
+        let model = try await VRMEntityLoader(
+            withData: data, rootDirectory: url.deletingLastPathComponent(),
+            outputColorSpace: .sRGB, compensatesToneMapping: false
+        ).loadEntity()
+        model.isAutomaticUpdateEnabled = false
+        model.setMToonLightDirection(normalize(-model.frontDirection + SIMD3<Float>(0.3, -0.5, 0)))
+        model.update(deltaTime: 0)
+
+        if let old = self.model { renderer.entities.remove(old) }
+        renderer.entities.append(model)
+        self.model = model
+        frame(model)
+        logger.info("loaded \(url.lastPathComponent, privacy: .public)")
+    }
+
+    func setRunning(_ running: Bool) {
+        timer?.invalidate()
+        timer = nil
+        guard running else { return }
+        let interval = 1.0 / Double(CameraIdentifiers.frameRate)
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.renderFrame(deltaTime: interval) }
+        }
+        // Common modes, so frames keep flowing while the menu bar menu is open.
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    /// Bust-up: from the top of the model down to the hips. The top comes from the model's
+    /// bounds, not the head bone, which sits at the bottom of the head and misses large
+    /// (chibi) heads.
+    /// LIMITATION: one fixed framing; Phase 4 adds composition presets and fine-tuning.
+    private func frame(_ model: VRMEntity) {
+        let head = model.humanoid.node(for: .head)?.position(relativeTo: nil) ?? SIMD3<Float>(0, 1.4, 0)
+        let hips = model.humanoid.node(for: .hips)?.position(relativeTo: nil) ?? SIMD3<Float>(0, 0.9, 0)
+        let top = max(model.visualBounds(relativeTo: nil).max.y, head.y)
+        let visibleHeight = max(top - hips.y, 0.1) * 1.2
+        // 5% margin above the top.
+        let target = SIMD3<Float>(head.x, top - visibleHeight * 0.45, head.z)
+        let distance = visibleHeight / 2 / tan(15 * .pi / 180)
+        camera.look(at: target, from: target + model.frontDirection * distance, relativeTo: nil)
+    }
+
+    private func renderFrame(deltaTime: TimeInterval) {
+        guard !frameInFlight else { return }
+        var pixelBuffer: CVPixelBuffer?
+        guard CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &pixelBuffer) == kCVReturnSuccess,
+              let pixelBuffer,
+              let surface = CVPixelBufferGetIOSurface(pixelBuffer)?.takeUnretainedValue() else { return }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
+        descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
+        descriptor.storageMode = .shared
+        guard let texture = device.makeTexture(descriptor: descriptor, iosurface: surface, plane: 0) else { return }
+
+        model?.update(deltaTime: deltaTime)
+        frameInFlight = true
+        // Handed to the completion handler and not touched here afterwards.
+        nonisolated(unsafe) let frame = pixelBuffer
+        do {
+            let output = try RealityRenderer.CameraOutput(.singleProjection(colorTexture: texture))
+            try renderer.updateAndRender(deltaTime: deltaTime, cameraOutput: output, onComplete: { [onFrame, weak self] _ in
+                onFrame(frame)
+                Task { @MainActor in self?.frameInFlight = false }
+            })
+        } catch {
+            frameInFlight = false
+            logger.error("render failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// RealityKit writes the background as linear values into the BGRA (non-sRGB) target,
+    /// which video apps read as sRGB, so the color is sRGB-encoded once more to come out as given.
+    private static func background(red: Float, green: Float, blue: Float) -> CGColor {
+        func encode(_ c: Float) -> CGFloat {
+            CGFloat(c <= 0.0031308 ? 12.92 * c : 1.055 * pow(c, 1 / 2.4) - 0.055)
+        }
+        // Tagged Display P3 so RealityKit keeps the numbers (see GLTFOutputColorSpace.sRGB).
+        return CGColor(
+            colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!,
+            components: [encode(red), encode(green), encode(blue), 1])!
+    }
+}
+
+/// VRMKit ignores KHR_materials_emissive_strength, so a material exported as
+/// emissiveFactor [1,1,1] with strength 0 (VRM Add-on for Blender) renders solid white.
+/// Multiplies the strength into emissiveFactor in the GLB's JSON chunk.
+/// Drop this once VRMKit applies the extension itself.
+func bakeEmissiveStrength(_ glb: Data) throws -> Data {
+    func u32(_ offset: Int) -> Int {
+        Int(glb.subdata(in: offset..<offset + 4).withUnsafeBytes { $0.loadUnaligned(as: UInt32.self) })
+    }
+    // GLB: 12-byte header, then the JSON chunk (length, type, payload), then the rest.
+    guard glb.count > 20 else { return glb }
+    let jsonRange = 20..<20 + u32(12)
+    guard var json = try JSONSerialization.jsonObject(with: glb.subdata(in: jsonRange)) as? [String: Any],
+          var materials = json["materials"] as? [[String: Any]] else { return glb }
+    var changed = false
+    for i in materials.indices {
+        guard let factor = materials[i]["emissiveFactor"] as? [Double],
+              let ext = materials[i]["extensions"] as? [String: Any],
+              let strength = (ext["KHR_materials_emissive_strength"] as? [String: Any])?["emissiveStrength"] as? Double
+        else { continue }
+        materials[i]["emissiveFactor"] = factor.map { $0 * strength }
+        changed = true
+    }
+    guard changed else { return glb }
+    json["materials"] = materials
+    var newJSON = try JSONSerialization.data(withJSONObject: json)
+    newJSON.append(contentsOf: [UInt8](repeating: 0x20, count: (4 - newJSON.count % 4) % 4))
+
+    func le(_ value: Int) -> Data { withUnsafeBytes(of: UInt32(value).littleEndian) { Data($0) } }
+    let rest = glb.subdata(in: jsonRange.upperBound..<glb.count)
+    var out = glb.subdata(in: 0..<8)  // magic + version
+    out += le(12 + 8 + newJSON.count + rest.count)
+    out += le(newJSON.count) + glb.subdata(in: 16..<20) + newJSON + rest
+    return out
+}

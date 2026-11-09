@@ -19,10 +19,9 @@ private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "Vir
 final class VirtualCameraBridge: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.kawarimidoll.vutusi.VirtualCameraBridge", qos: .userInteractive)
     private let onSourceRunningChange: @Sendable (Bool) -> Void
-    private let makeFrame: () -> CVPixelBuffer?
 
     private var pollTimer: DispatchSourceTimer?
-    private var frameTimer: DispatchSourceTimer?
+    private var isSending = false
     private var deviceID: CMIOObjectID?
     private var sinkStreamID: CMIOStreamID?
     private var sinkQueue: CMSimpleQueue?
@@ -30,8 +29,7 @@ final class VirtualCameraBridge: @unchecked Sendable {
     private var stalledFrames = 0
     private var formatDescription: CMVideoFormatDescription?
 
-    init(makeFrame: @escaping () -> CVPixelBuffer?, onSourceRunningChange: @escaping @Sendable (Bool) -> Void) {
-        self.makeFrame = makeFrame
+    init(onSourceRunningChange: @escaping @Sendable (Bool) -> Void) {
         self.onSourceRunningChange = onSourceRunningChange
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now(), repeating: 1.0, leeway: .milliseconds(100))
@@ -40,9 +38,16 @@ final class VirtualCameraBridge: @unchecked Sendable {
         pollTimer = timer
     }
 
-    /// Starts or stops pushing frames into the sink stream.
+    /// Starts or stops the sink stream that `send(_:)` feeds.
     func setSending(_ sending: Bool) {
         queue.async { [self] in sending ? startSending() : stopSending() }
+    }
+
+    /// Enqueues one frame; dropped unless sending.
+    func send(_ pixelBuffer: CVPixelBuffer) {
+        // Only read on `queue`, and the producer does not touch it after handing it over.
+        nonisolated(unsafe) let frame = pixelBuffer
+        queue.async { [self] in enqueue(frame) }
     }
 
     private func poll() {
@@ -61,7 +66,7 @@ final class VirtualCameraBridge: @unchecked Sendable {
             }
             return
         }
-        let running = frameTimer == nil
+        let running = !isSending
             ? runningSomewhere != 0
             : stalledFrames < Int(CameraIdentifiers.frameRate) / 2
         guard running != sourceRunning else { return }
@@ -92,7 +97,7 @@ final class VirtualCameraBridge: @unchecked Sendable {
     }
 
     private func startSending() {
-        guard frameTimer == nil else { return }
+        guard !isSending else { return }
         if deviceID == nil { discover() }
         guard let deviceID, let sinkStreamID else {
             logger.error("cannot send: device not found")
@@ -113,32 +118,26 @@ final class VirtualCameraBridge: @unchecked Sendable {
             return
         }
         stalledFrames = 0
+        isSending = true
         logger.info("sending started")
-        let timer = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
-        timer.schedule(deadline: .now(), repeating: 1.0 / Double(CameraIdentifiers.frameRate), leeway: .nanoseconds(0))
-        timer.setEventHandler { [weak self] in self?.sendFrame() }
-        timer.resume()
-        frameTimer = timer
     }
 
     private func stopSending() {
-        guard let timer = frameTimer else { return }
-        timer.cancel()
-        frameTimer = nil
+        guard isSending else { return }
+        isSending = false
         if let deviceID, let sinkStreamID {
             CMIODeviceStopStream(deviceID, sinkStreamID)
         }
         logger.info("sending stopped")
     }
 
-    private func sendFrame() {
-        guard let sinkQueue else { return }
+    private func enqueue(_ pixelBuffer: CVPixelBuffer) {
+        guard isSending, let sinkQueue else { return }
         guard CMSimpleQueueGetCount(sinkQueue) < CMSimpleQueueGetCapacity(sinkQueue) else {
             stalledFrames += 1
             return
         }
         stalledFrames = 0
-        guard let pixelBuffer = makeFrame() else { return }
         if formatDescription == nil {
             CMVideoFormatDescriptionCreateForImageBuffer(
                 allocator: kCFAllocatorDefault, imageBuffer: pixelBuffer, formatDescriptionOut: &formatDescription)

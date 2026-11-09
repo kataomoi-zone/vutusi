@@ -1,33 +1,85 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 @main
 struct VutusiApp: App {
     // Activates on launch so that each `scripts/dev.sh` run replaces the installed extension.
     @State private var installer = ExtensionInstaller(activateOnLaunch: true)
-    @State private var runtime = RuntimeState()
-    private let bridge: VirtualCameraBridge
+    @State private var runtime: RuntimeState
+    @State private var avatar: AvatarController
 
     init() {
         let runtime = RuntimeState()
-        let pattern = TestPattern()
-        let bridge = VirtualCameraBridge(makeFrame: pattern.nextFrame) { running in
+        let bridge = VirtualCameraBridge { running in
             Task { @MainActor in runtime.isSourceRunning = running }
         }
-        runtime.onActiveChange = { bridge.setSending($0) }
+        let avatar = AvatarController(bridge: bridge)
+        runtime.onActiveChange = { active in
+            bridge.setSending(active)
+            avatar.renderer?.setRunning(active)
+        }
         _runtime = State(initialValue: runtime)
-        self.bridge = bridge
+        _avatar = State(initialValue: avatar)
     }
 
     var body: some Scene {
         MenuBarExtra("vutusi", systemImage: runtime.isActive ? "video.fill" : "video") {
             Text("Camera: \(runtime.isSourceRunning ? "in use" : "idle")")
+            Text("Model: \(avatar.status)")
             Text("Camera Extension: \(installer.status)")
+            Divider()
+            Button("Open VRM…") { avatar.chooseModel() }
             Divider()
             Button("Install Camera Extension") { installer.activate() }
             Button("Uninstall Camera Extension") { installer.deactivate() }
             Divider()
             Button("Quit vutusi") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
+        }
+    }
+}
+
+/// Owns the renderer and the chosen model.
+/// LIMITATION: remembers the model by its path; Phase 4 copies models into Application Support.
+@MainActor
+@Observable
+final class AvatarController {
+    private(set) var status = "none"
+    @ObservationIgnored let renderer: AvatarRenderer?
+    @ObservationIgnored private let modelPathKey = "modelPath"
+
+    init(bridge: VirtualCameraBridge) {
+        do {
+            renderer = try AvatarRenderer { bridge.send($0) }
+        } catch {
+            renderer = nil
+            status = "renderer failed: \(error.localizedDescription)"
+            return
+        }
+        if let path = UserDefaults.standard.string(forKey: modelPathKey) {
+            load(URL(fileURLWithPath: path))
+        }
+    }
+
+    func chooseModel() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "vrm") ?? .data]
+        NSApp.activate()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        UserDefaults.standard.set(url.path, forKey: modelPathKey)
+        load(url)
+    }
+
+    private func load(_ url: URL) {
+        guard let renderer else { return }
+        status = "loading \(url.lastPathComponent)"
+        Task {
+            do {
+                try await renderer.load(url)
+                status = url.lastPathComponent
+            } catch {
+                status = "failed: \(error.localizedDescription)"
+            }
         }
     }
 }
