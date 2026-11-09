@@ -72,12 +72,19 @@ final class AvatarRenderer {
         CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, attributes, &pool)
     }
 
+    /// Bumped by every load and unload, so a load that finishes after a later one began
+    /// is dropped instead of replacing the newer model.
+    private var loadGeneration = 0
+
     func load(_ url: URL) async throws {
+        loadGeneration += 1
+        let generation = loadGeneration
         let data = try bakeEmissiveStrength(Data(contentsOf: url))
         let model = try await VRMEntityLoader(
             withData: data, rootDirectory: url.deletingLastPathComponent(),
             outputColorSpace: .sRGB, compensatesToneMapping: false
         ).loadEntity()
+        guard generation == loadGeneration else { return }
         model.isAutomaticUpdateEnabled = false
         model.setMToonLightDirection(normalize(-model.frontDirection + SIMD3<Float>(0.3, -0.5, 0)))
         model.update(deltaTime: 0)
@@ -92,6 +99,7 @@ final class AvatarRenderer {
     }
 
     func unload() {
+        loadGeneration += 1
         if let model { renderer.entities.remove(model) }
         model = nil
         applier = nil
