@@ -16,6 +16,10 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
     private let window: NSWindow
     private var loaded = false
     private var wantsRunning = false
+    /// The camera to track, by name; empty picks the first camera other than vutusi Camera.
+    var cameraName = "" {
+        didSet { if loaded { sendCameraName() } }
+    }
     private let onResult: (HolisticResult, _ faceMetrics: [String: Float], _ jsLatencyMs: Double) -> Void
 
     init(onResult: @escaping (HolisticResult, [String: Float], Double) -> Void) {
@@ -52,6 +56,11 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
         webView.evaluateJavaScript(running ? "vutusi.start()" : "vutusi.stop()")
     }
 
+    private func sendCameraName() {
+        webView.callAsyncJavaScript(
+            "await vutusi.setCamera(name)", arguments: ["name": cameraName], in: nil, in: .page)
+    }
+
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? String, let data = body.data(using: .utf8) else { return }
         guard let header = try? JSONDecoder().decode(Header.self, from: data) else { return }
@@ -64,6 +73,7 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
             onResult(message.result, message.faceMetrics ?? [:], message.jsLatencyMs)
         case "loaded":
             loaded = true
+            sendCameraName()
             setRunning(wantsRunning)
         case "error":
             logger.error("page: \(header.message ?? body, privacy: .public)")

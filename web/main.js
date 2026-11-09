@@ -46,14 +46,18 @@ function tick() {
   timer = setTimeout(tick, 5)
 }
 
-// The default camera can be vutusi Camera itself, which then tracks the avatar's own
-// image. Device labels are only exposed after a first getUserMedia in the page.
-// LIMITATION: takes the first other camera; Phase 4 adds a camera setting.
+// The camera chosen in the settings, matched by name (Swift lists cameras with
+// AVFoundation, whose names WebKit uses as labels), else the first camera that is not
+// vutusi Camera: the default can be vutusi Camera itself, which then tracks the
+// avatar's own image. Labels are only exposed after a first getUserMedia in the page.
+let preferredCamera = ''
 async function physicalCameraId() {
-  const find = async () =>
-    (await navigator.mediaDevices.enumerateDevices()).find(
+  const find = async () => {
+    const cameras = (await navigator.mediaDevices.enumerateDevices()).filter(
       (d) => d.kind === 'videoinput' && d.label && !d.label.startsWith('vutusi'),
     )
+    return cameras.find((d) => d.label === preferredCamera) ?? cameras[0]
+  }
   let device = await find()
   if (!device) {
     const probe = await navigator.mediaDevices.getUserMedia({ video: true })
@@ -89,6 +93,13 @@ window.vutusi = {
     video.srcObject = null
     busy = false
     post({ type: 'camera', on: false })
+  },
+  async setCamera(name) {
+    preferredCamera = name
+    if (running) {
+      this.stop()
+      await this.start()
+    }
   },
 }
 post({ type: 'loaded' })

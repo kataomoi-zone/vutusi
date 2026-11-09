@@ -17,6 +17,10 @@ final class AvatarRenderer {
     private var pool: CVPixelBufferPool!
     private var model: VRMEntity?
     private var applier: TrackingApplier?
+    /// 0 (none) to 1; see TrackingApplier.smoothing.
+    var smoothing: Float = 0.5 {
+        didSet { applier?.smoothing = smoothing }
+    }
     private var stats = TrackingStats()
     /// The newest tracking result not yet rendered: when it arrived, and the page's latency.
     private var unrenderedResult: (arrived: ContinuousClock.Instant, pageMs: Double)?
@@ -64,6 +68,7 @@ final class AvatarRenderer {
         renderer.entities.append(model)
         self.model = model
         applier = TrackingApplier(model: model)
+        applier?.smoothing = smoothing
         frame(model)
         logger.info("loaded \(url.lastPathComponent, privacy: .public)")
     }

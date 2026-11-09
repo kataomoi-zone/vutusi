@@ -25,22 +25,43 @@ struct VutusiApp: App {
 
     var body: some Scene {
         MenuBarExtra("vutusi", systemImage: runtime.isActive ? "video.fill" : "video") {
-            Text("Camera: \(runtime.isSourceRunning ? "in use" : "idle")")
-            Text("Model: \(avatar.status)")
-            Text("Camera Extension: \(installer.status)")
-            Divider()
-            Button("Open VRM…") { avatar.chooseModel() }
-            Divider()
-            Button("Install Camera Extension") { installer.activate() }
-            Button("Uninstall Camera Extension") { installer.deactivate() }
-            Divider()
-            Button("Quit vutusi") { NSApplication.shared.terminate(nil) }
-                .keyboardShortcut("q")
+            MenuContent(runtime: runtime, avatar: avatar, installer: installer)
+        }
+        Settings {
+            SettingsView(avatar: avatar)
         }
     }
 }
 
-/// Owns the renderer, the tracker that drives it, and the chosen model.
+private struct MenuContent: View {
+    let runtime: RuntimeState
+    let avatar: AvatarController
+    let installer: ExtensionInstaller
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Text("Camera: \(runtime.isSourceRunning ? "in use" : "idle")")
+        Text("Model: \(avatar.status)")
+        Text("Camera Extension: \(installer.status)")
+        Divider()
+        Button("Open VRM…") { avatar.chooseModel() }
+        Button("Settings…") {
+            // A menu bar app is not active, so its settings window would open behind others.
+            NSApp.activate()
+            openSettings()
+        }
+        .keyboardShortcut(",")
+        Divider()
+        Button("Install Camera Extension") { installer.activate() }
+        Button("Uninstall Camera Extension") { installer.deactivate() }
+        Divider()
+        Button("Quit vutusi") { NSApplication.shared.terminate(nil) }
+            .keyboardShortcut("q")
+    }
+}
+
+/// Owns the renderer, the tracker that drives it, the chosen model and the tracking
+/// settings, which are kept in UserDefaults.
 /// LIMITATION: remembers the model by its path; Phase 4 copies models into Application Support.
 @MainActor
 @Observable
@@ -49,6 +70,29 @@ final class AvatarController {
     @ObservationIgnored let renderer: AvatarRenderer?
     @ObservationIgnored private(set) var tracker: WebTracker?
     @ObservationIgnored private let modelPathKey = "modelPath"
+
+    /// The camera to track by name; empty picks one automatically.
+    var cameraName = UserDefaults.standard.string(forKey: "cameraName") ?? "" {
+        didSet {
+            UserDefaults.standard.set(cameraName, forKey: "cameraName")
+            tracker?.cameraName = cameraName
+        }
+    }
+
+    var smoothing = UserDefaults.standard.object(forKey: "smoothing") as? Float ?? AvatarController.defaultSmoothing {
+        didSet {
+            UserDefaults.standard.set(smoothing, forKey: "smoothing")
+            renderer?.smoothing = smoothing
+        }
+    }
+
+    /// animovi's default.
+    static let defaultSmoothing: Float = 0.5
+
+    func resetSettings() {
+        cameraName = ""
+        smoothing = Self.defaultSmoothing
+    }
 
     init(bridge: VirtualCameraBridge) {
         do {
@@ -61,6 +105,8 @@ final class AvatarController {
         tracker = WebTracker { [renderer] result, faceMetrics, jsLatencyMs in
             renderer?.apply(result, faceMetrics: faceMetrics, jsLatencyMs: jsLatencyMs)
         }
+        tracker?.cameraName = cameraName
+        renderer?.smoothing = smoothing
         if let path = UserDefaults.standard.string(forKey: modelPathKey) {
             load(URL(fileURLWithPath: path))
         }
