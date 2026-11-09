@@ -35,7 +35,9 @@ submission=build/release/notarize.json
 # A zip with the .app as its single top-level entry, as Finder expects.
 ditto -c -k --keepParent "$app" "$zip"
 echo "notarize.sh: submitting $zip (usually 5 to 15 minutes)"
-xcrun notarytool submit "$zip" "${key[@]}" --wait --output-format json > "$submission"
+# A rejected submission may exit non-zero; read its status from the JSON either way so
+# the notary log below gets printed.
+xcrun notarytool submit "$zip" "${key[@]}" --wait --output-format json > "$submission" || true
 status="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$submission")"
 if [[ "$status" != "Accepted" ]]; then
   id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id"])' "$submission")"
