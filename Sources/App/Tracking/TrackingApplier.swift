@@ -23,7 +23,7 @@ final class TrackingApplier {
     private var filters: [String: Float] = [:]
     private var faceActive = false
     private var poseActive = false
-    private var handActive = (left: false, right: false)
+    private var activeHands: Set<Side> = []
 
     // Eye and mouth values ignore the smoothing setting, so they stay responsive.
     private static let fastKeys: Set<String> = ["gazeX", "gazeY", "blinkLeft", "blinkRight", "aa", "oh", "ou", "happy"]
@@ -70,11 +70,11 @@ final class TrackingApplier {
             (Side.right, result.rightHand, result.pose?.rightArm),
         ] {
             if let hand {
-                setHandActive(side, true)
+                activeHands.insert(side)
                 applyFingers(side, hand)
                 if let frame = hand.wristFrame, let arm { applyWrist(side, frame, arm) }
-            } else if handActive(side) {
-                setHandActive(side, false)
+            } else if activeHands.contains(side) {
+                activeHands.remove(side)
                 resetFilters(prefixes: ["\(side.rawValue)Hand", "\(side.rawValue)Finger"])
             }
         }
@@ -167,12 +167,6 @@ final class TrackingApplier {
     // MARK: Hands
 
     enum Side: String { case left, right }
-
-    private func handActive(_ side: Side) -> Bool { side == .left ? handActive.left : handActive.right }
-
-    private func setHandActive(_ side: Side, _ active: Bool) {
-        if side == .left { handActive.left = active } else { handActive.right = active }
-    }
 
     /// Normalized finger bones extend along X, so curl rotates about Z and spread about Y.
     /// Left fingers extend toward +X in the solver frame and right ones toward -X, hence

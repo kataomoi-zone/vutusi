@@ -63,20 +63,20 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? String, let data = body.data(using: .utf8) else { return }
-        guard let header = try? JSONDecoder().decode(Header.self, from: data) else { return }
-        switch header.type {
+        guard let message = try? JSONDecoder().decode(Message.self, from: data) else {
+            logger.error("undecodable message: \(body.prefix(200), privacy: .public)")
+            return
+        }
+        switch message.type {
         case "result":
-            guard let message = try? JSONDecoder().decode(ResultMessage.self, from: data) else {
-                logger.error("undecodable result: \(body.prefix(200), privacy: .public)")
-                return
-            }
-            onResult(message.result, message.faceMetrics ?? [:], message.jsLatencyMs)
+            guard let result = message.result else { return }
+            onResult(result, message.faceMetrics ?? [:], message.jsLatencyMs ?? 0)
         case "loaded":
             loaded = true
             sendCameraName()
             setRunning(wantsRunning)
         case "error":
-            logger.error("page: \(header.message ?? body, privacy: .public)")
+            logger.error("page: \(message.message ?? body, privacy: .public)")
         default:
             logger.info("page: \(body, privacy: .public)")
         }
@@ -97,15 +97,13 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
         webView.reload()
     }
 
-    private struct Header: Decodable {
+    /// Every message the page posts; fields beyond `type` depend on it.
+    private struct Message: Decodable {
         var type: String
         var message: String?
-    }
-
-    private struct ResultMessage: Decodable {
-        var result: HolisticResult
+        var result: HolisticResult?
         var faceMetrics: [String: Float]?
-        var jsLatencyMs: Double
+        var jsLatencyMs: Double?
     }
 }
 
