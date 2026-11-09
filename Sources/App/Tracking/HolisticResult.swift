@@ -1,5 +1,5 @@
-// The tracking worker's output (web/worker.ts), decoded from JSON.
-// Shapes follow animovi's solvers (web/animovi/solver/*.ts): angles are radians in
+// The tracking worker's output (web-src/worker.ts), decoded from JSON.
+// Shapes follow animovi's solvers (web-src/animovi/solver/*.ts): angles are radians in
 // "solver space", the native frame of a VRM 0.x avatar (Y up, facing -Z, left arm
 // along -X), as ZYX Euler angles (x applies first).
 

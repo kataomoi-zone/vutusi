@@ -1,5 +1,5 @@
 // Port of animovi's TrackingBridge (src/lib/vrm/tracking-bridge.ts) from three-vrm
-// to VRMKit. Copyright (c) motoki317, MIT License; see web/animovi/LICENSE.
+// to VRMKit. Copyright (c) motoki317, MIT License; see web-src/animovi/LICENSE.
 
 import Foundation
 import VRMRealityKit
@@ -101,7 +101,7 @@ final class TrackingApplier {
         }))
     }
 
-    /// Blinks and mouth shapes from the worker's face metrics (web/worker.ts), which,
+    /// Blinks and mouth shapes from the worker's face metrics (web-src/worker.ts), which,
     /// unlike animovi's image-space distances, hold at any distance to the camera and
     /// tell one eye from the other and a rounded mouth from an open one.
     ///
