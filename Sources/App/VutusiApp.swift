@@ -14,10 +14,11 @@ struct VutusiApp: App {
             Task { @MainActor in runtime.isSourceRunning = running }
         }
         let avatar = AvatarController(bridge: bridge)
-        runtime.onActiveChange = { active in
-            bridge.setSending(active)
-            avatar.renderer?.setRunning(active)
-            avatar.tracker?.setRunning(active)
+        runtime.onChange = { runtime in
+            // Only a video app drains the sink, so the preview alone sends nothing there.
+            bridge.setSending(runtime.isSourceRunning)
+            avatar.renderer?.setRunning(runtime.isActive)
+            avatar.tracker?.setRunning(runtime.isActive)
         }
         _runtime = State(initialValue: runtime)
         _avatar = State(initialValue: avatar)
@@ -28,7 +29,7 @@ struct VutusiApp: App {
             MenuContent(runtime: runtime, avatar: avatar, installer: installer)
         }
         Settings {
-            SettingsView(avatar: avatar)
+            SettingsView(avatar: avatar, runtime: runtime)
         }
     }
 }
@@ -68,6 +69,7 @@ private struct MenuContent: View {
 final class AvatarController {
     private(set) var status = "none"
     @ObservationIgnored let renderer: AvatarRenderer?
+    @ObservationIgnored let preview = Preview()
     @ObservationIgnored private(set) var tracker: WebTracker?
     @ObservationIgnored private let modelPathKey = "modelPath"
 
@@ -150,7 +152,10 @@ final class AvatarController {
 
     init(bridge: VirtualCameraBridge) {
         do {
-            renderer = try AvatarRenderer { bridge.send($0) }
+            renderer = try AvatarRenderer { [preview] frame in
+                bridge.send(frame)
+                preview.show(frame)
+            }
         } catch {
             renderer = nil
             status = "renderer failed: \(error.localizedDescription)"
@@ -188,5 +193,23 @@ final class AvatarController {
                 status = "failed: \(error.localizedDescription)"
             }
         }
+    }
+}
+
+/// The rendered frames as a layer for the settings window.
+@MainActor
+final class Preview: Sendable {
+    let layer: CALayer = {
+        let layer = CALayer()
+        layer.contentsGravity = .resizeAspect
+        layer.backgroundColor = .black
+        return layer
+    }()
+
+    nonisolated func show(_ frame: CVPixelBuffer) {
+        // The frame's IOSurface is shown as is, with no copy; it is read on the main
+        // thread only and not written to until the pool hands it out again.
+        nonisolated(unsafe) let surface = CVPixelBufferGetIOSurface(frame)?.takeUnretainedValue()
+        Task { @MainActor in layer.contents = surface }
     }
 }

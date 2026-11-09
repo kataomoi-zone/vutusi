@@ -99,6 +99,7 @@ final class AvatarRenderer {
     }
 
     func setRunning(_ running: Bool) {
+        guard running != (timer != nil) else { return }
         timer?.invalidate()
         timer = nil
         guard running else { return }

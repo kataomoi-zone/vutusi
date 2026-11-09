@@ -5,17 +5,14 @@ import Observation
 @Observable
 final class RuntimeState {
     /// A video app is showing vutusi Camera.
-    var isSourceRunning = false { didSet { notifyIfChanged() } }
+    var isSourceRunning = false { didSet { if isSourceRunning != oldValue { onChange?(self) } } }
 
-    var isActive: Bool { isSourceRunning }
+    /// The settings window shows the preview.
+    var isPreviewOpen = false { didSet { if isPreviewOpen != oldValue { onChange?(self) } } }
 
-    /// Called with the new `isActive` whenever it flips.
-    @ObservationIgnored var onActiveChange: ((Bool) -> Void)?
-    @ObservationIgnored private var lastActive = false
+    /// Tracking and rendering run while someone looks: a video app or the preview.
+    var isActive: Bool { isSourceRunning || isPreviewOpen }
 
-    private func notifyIfChanged() {
-        guard isActive != lastActive else { return }
-        lastActive = isActive
-        onActiveChange?(isActive)
-    }
+    /// Called whenever either input changes.
+    @ObservationIgnored var onChange: ((RuntimeState) -> Void)?
 }

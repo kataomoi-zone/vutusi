@@ -3,9 +3,30 @@ import SwiftUI
 
 struct SettingsView: View {
     @Bindable var avatar: AvatarController
+    let runtime: RuntimeState
     @State private var cameras: [String] = []
 
     var body: some View {
+        // The preview sits beside the form, large and never scrolled away, so the framing
+        // and background can be adjusted while watching it.
+        HStack(spacing: 0) {
+            PreviewLayerView(layer: avatar.preview.layer)
+                .frame(width: 640, height: 360)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(20)
+            form
+                .frame(width: 400)
+        }
+        .frame(height: 400)
+        .onAppear {
+            cameras = Self.physicalCameras()
+            // Tracking and rendering run while the preview shows, and stop when it closes.
+            runtime.isPreviewOpen = true
+        }
+        .onDisappear { runtime.isPreviewOpen = false }
+    }
+
+    private var form: some View {
         Form {
             Section("Tracking") {
                 Picker("Camera", selection: $avatar.cameraName) {
@@ -64,8 +85,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420)
-        .onAppear { cameras = Self.physicalCameras() }
     }
 
     private var backgroundColor: Binding<Color> {
@@ -85,4 +104,18 @@ struct SettingsView: View {
             mediaType: .video, position: .unspecified
         ).devices.map(\.localizedName).filter { !$0.hasPrefix(CameraIdentifiers.deviceName) }
     }
+}
+
+/// Hosts a layer that is updated outside SwiftUI, so frames do not re-render the form.
+private struct PreviewLayerView: NSViewRepresentable {
+    let layer: CALayer
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        view.layer = layer
+        view.wantsLayer = true
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {}
 }
