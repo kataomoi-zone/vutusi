@@ -31,8 +31,10 @@ func run() async throws {
 
     for toneMapping in [true, false] {
         let loadStart = Date()
+        let data = try bakeEmissiveStrength(Data(contentsOf: modelURL))
         let model = try await VRMEntityLoader(
-            withURL: modelURL, outputColorSpace: .sRGB, compensatesToneMapping: toneMapping
+            withData: data, rootDirectory: modelURL.deletingLastPathComponent(),
+            outputColorSpace: .sRGB, compensatesToneMapping: toneMapping
         ).loadEntity()
         print("[\(label)] load: \(ms(since: loadStart)) ms, front: \(model.frontDirection)")
         model.isAutomaticUpdateEnabled = false
@@ -112,6 +114,40 @@ func writePNG(_ pixelBuffer: CVPixelBuffer, to url: URL) throws {
     let image = CIImage(cvPixelBuffer: pixelBuffer)
     try CIContext().writePNGRepresentation(
         of: image, to: url, format: .BGRA8, colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!)
+}
+
+/// VRMKit ignores KHR_materials_emissive_strength, so a material exported as
+/// emissiveFactor [1,1,1] with strength 0 (VRM Add-on for Blender) renders solid white.
+/// Multiplies the strength into emissiveFactor in the GLB's JSON chunk.
+func bakeEmissiveStrength(_ glb: Data) throws -> Data {
+    func u32(_ offset: Int) -> Int {
+        Int(glb.subdata(in: offset..<offset + 4).withUnsafeBytes { $0.loadUnaligned(as: UInt32.self) })
+    }
+    // GLB: 12-byte header, then the JSON chunk (length, type, payload), then the rest.
+    let jsonLength = u32(12)
+    let jsonRange = 20..<20 + jsonLength
+    guard var json = try JSONSerialization.jsonObject(with: glb.subdata(in: jsonRange)) as? [String: Any],
+          var materials = json["materials"] as? [[String: Any]] else { return glb }
+    var changed = false
+    for i in materials.indices {
+        guard let factor = materials[i]["emissiveFactor"] as? [Double],
+              let ext = materials[i]["extensions"] as? [String: Any],
+              let strength = (ext["KHR_materials_emissive_strength"] as? [String: Any])?["emissiveStrength"] as? Double
+        else { continue }
+        materials[i]["emissiveFactor"] = factor.map { $0 * strength }
+        changed = true
+    }
+    guard changed else { return glb }
+    json["materials"] = materials
+    var newJSON = try JSONSerialization.data(withJSONObject: json)
+    newJSON.append(contentsOf: [UInt8](repeating: 0x20, count: (4 - newJSON.count % 4) % 4))
+
+    func le(_ value: Int) -> Data { withUnsafeBytes(of: UInt32(value).littleEndian) { Data($0) } }
+    let rest = glb.subdata(in: jsonRange.upperBound..<glb.count)
+    var out = glb.subdata(in: 0..<8)  // magic + version
+    out += le(12 + 8 + newJSON.count + rest.count)
+    out += le(newJSON.count) + glb.subdata(in: 16..<20) + newJSON + rest
+    return out
 }
 
 func ms(since start: Date) -> Double { Date().timeIntervalSince(start) * 1000 }
