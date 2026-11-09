@@ -11,7 +11,8 @@ private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "Vir
 /// stream makes the whole device count as running:
 /// - while not sending, kCMIODevicePropertyDeviceIsRunningSomewhere means a video app;
 /// - while sending, the extension drains the sink only for a video app, so a sink queue
-///   that stays full means nobody is watching any more.
+///   that stays full means nobody is watching any more. Frames that stop coming count as
+///   nobody watching too, so a stuck renderer cannot keep the camera "in use" forever.
 ///
 /// LIMITATION: polls once a second instead of listening for changes, so a video app waits
 /// up to a second for the first frame.
@@ -27,6 +28,7 @@ final class VirtualCameraBridge: @unchecked Sendable {
     private var sinkQueue: CMSimpleQueue?
     private var sourceRunning = false
     private var stalledFrames = 0
+    private var lastFrameAt = ContinuousClock.now
     private var formatDescription: CMVideoFormatDescription?
 
     init(onSourceRunningChange: @escaping @Sendable (Bool) -> Void) {
@@ -68,7 +70,7 @@ final class VirtualCameraBridge: @unchecked Sendable {
         }
         let running = !isSending
             ? runningSomewhere != 0
-            : stalledFrames < Int(CameraIdentifiers.frameRate) / 2
+            : stalledFrames < Int(CameraIdentifiers.frameRate) / 2 && ContinuousClock.now - lastFrameAt < .seconds(1)
         guard running != sourceRunning else { return }
         sourceRunning = running
         logger.info("source running: \(running)")
@@ -118,6 +120,7 @@ final class VirtualCameraBridge: @unchecked Sendable {
             return
         }
         stalledFrames = 0
+        lastFrameAt = .now
         isSending = true
         logger.info("sending started")
     }
@@ -133,6 +136,7 @@ final class VirtualCameraBridge: @unchecked Sendable {
 
     private func enqueue(_ pixelBuffer: CVPixelBuffer) {
         guard isSending, let sinkQueue else { return }
+        lastFrameAt = .now
         guard CMSimpleQueueGetCount(sinkQueue) < CMSimpleQueueGetCapacity(sinkQueue) else {
             stalledFrames += 1
             return
