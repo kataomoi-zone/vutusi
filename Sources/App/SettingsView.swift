@@ -39,6 +39,15 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
+            if avatar.cameraAccessDenied {
+                Section {
+                    Label("vutusi cannot use the camera, so the avatar does not move. "
+                        + "Turn vutusi on in Privacy & Security > Camera, then let macOS reopen it.",
+                        systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Button("Open Privacy Settings…") { avatar.openCameraPrivacySettings() }
+                }
+            }
             Section("Model") {
                 Picker("Model", selection: $avatar.modelName) {
                     if avatar.models.isEmpty { Text("None").tag("") }

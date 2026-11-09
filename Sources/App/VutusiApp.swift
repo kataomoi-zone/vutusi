@@ -43,6 +43,11 @@ private struct MenuContent: View {
         Text("Camera: \(runtime.isSourceRunning ? "in use" : "idle")")
         Text("Model: \(avatar.status)")
         Text("Camera Extension: \(installer.status)")
+        if avatar.cameraAccessDenied {
+            Divider()
+            Text("Camera access is off; the avatar does not move")
+            Button("Allow Camera Access…") { avatar.openCameraPrivacySettings() }
+        }
         Divider()
         Picker("Model", selection: $avatar.modelName) {
             ForEach(avatar.models, id: \.self) { Text($0).tag($0) }

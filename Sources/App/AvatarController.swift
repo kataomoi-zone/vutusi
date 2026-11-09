@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import UniformTypeIdentifiers
 
@@ -11,6 +12,11 @@ final class AvatarController {
     @ObservationIgnored let preview = Preview()
     @ObservationIgnored private(set) var tracker: WebTracker?
     @ObservationIgnored private let library = ModelLibrary()
+
+    /// Camera permission. Tracking reads the camera through a web view, which fails without
+    /// telling why when access is off, so the app asks the system directly.
+    private(set) var cameraAccess = AVCaptureDevice.authorizationStatus(for: .video)
+    var cameraAccessDenied: Bool { cameraAccess == .denied || cameraAccess == .restricted }
 
     /// The models in the library.
     private(set) var models: [String] = []
@@ -142,6 +148,8 @@ final class AvatarController {
             renderer?.apply(result, faceMetrics: faceMetrics, jsLatencyMs: jsLatencyMs)
         }
         tracker?.cameraName = cameraName
+        tracker?.onCameraError = { [weak self] _ in self?.refreshCameraAccess() }
+        refreshCameraAccess()
         renderer?.smoothing = smoothing
         renderer?.framing = framing
         applyBackground()
@@ -155,6 +163,16 @@ final class AvatarController {
         }
         models = library.names()
         loadModel()
+    }
+
+    /// Granting access needs a relaunch (macOS offers one), so the status is read only at
+    /// launch and when the camera fails to open.
+    func refreshCameraAccess() {
+        cameraAccess = AVCaptureDevice.authorizationStatus(for: .video)
+    }
+
+    func openCameraPrivacySettings() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera")!)
     }
 
     /// Copies a VRM into the library and shows it.
