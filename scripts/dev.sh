@@ -68,7 +68,14 @@ if ! xcodebuild \
 fi
 
 app=/Applications/vutusi.app
-pkill -x vutusi || true
+# LaunchServices fails with -600 when asked to open an app whose old process is still
+# exiting, so wait for it to be gone.
+quit_app() {
+  pkill -x vutusi || true
+  while pgrep -x vutusi > /dev/null; do sleep 0.2; done
+}
+
+quit_app
 rm -rf "$app"
 ditto build/DerivedData/Build/Products/Debug/vutusi.app "$app"
 open "$app"
@@ -79,8 +86,7 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 if systemextensionsctl list | grep -F "/$version)" | grep -qF "[activated enabled]"; then
-  pkill -x vutusi || true
-  sleep 1
+  quit_app
   open "$app"
 else
   echo "dev.sh: extension $version is not active yet (approve it in System Settings, then relaunch vutusi)"
