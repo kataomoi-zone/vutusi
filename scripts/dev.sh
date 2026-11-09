@@ -6,6 +6,10 @@
 # the current epoch on every build because sysextd skips the replacement when
 # the version is unchanged.
 #
+# A running process keeps the CoreMediaIO device list it saw at launch, so the
+# app that replaced the extension never sees the new device. Once the new
+# version is active, the app is launched again to pick it up.
+#
 # The script exits after launch instead of tailing logs so it can run from a
 # non-interactive shell; it prints recent logs and the extension state, and
 # `scripts/logs.sh` tails the rest.
@@ -41,6 +45,7 @@ fi
 
 mkdir -p build
 log_file=build/xcodebuild.log
+version="$(date +%s)"
 echo "dev.sh: building (full log: $log_file)"
 if ! xcodebuild \
   -project vutusi.xcodeproj -scheme vutusi -configuration Debug \
@@ -49,7 +54,7 @@ if ! xcodebuild \
   -authenticationKeyPath "$VUTUSI_ASC_KEY_PATH" \
   -authenticationKeyID "$VUTUSI_ASC_KEY_ID" \
   -authenticationKeyIssuerID "$VUTUSI_ASC_ISSUER" \
-  CURRENT_PROJECT_VERSION="$(date +%s)" \
+  CURRENT_PROJECT_VERSION="$version" \
   build > "$log_file" 2>&1; then
   grep -E "error:|BUILD FAILED" "$log_file" | sort -u >&2 || tail -30 "$log_file" >&2
   exit 1
@@ -61,6 +66,19 @@ rm -rf "$app"
 ditto build/DerivedData/Build/Products/Debug/vutusi.app "$app"
 open "$app"
 
-sleep 5
-log show --last 10s --info --style compact --predicate 'subsystem == "com.kawarimidoll.vutusi"'
+extension_id=com.kawarimidoll.vutusi.CameraExtension
+for _ in $(seq 1 30); do
+  systemextensionsctl list | grep -F "$extension_id (" | grep -F "/$version)" | grep -qF "[activated enabled]" && break
+  sleep 1
+done
+if systemextensionsctl list | grep -F "/$version)" | grep -qF "[activated enabled]"; then
+  pkill -x vutusi || true
+  sleep 1
+  open "$app"
+else
+  echo "dev.sh: extension $version is not active yet (approve it in System Settings, then relaunch vutusi)"
+fi
+
+sleep 3
+log show --last 40s --info --style compact --predicate 'subsystem == "com.kawarimidoll.vutusi"'
 systemextensionsctl list | grep -F com.kawarimidoll.vutusi || echo "dev.sh: extension not listed yet"
