@@ -31,3 +31,26 @@ systemextensionsctl list          # expect [activated enabled] for com.kawarimid
 - A running process keeps the camera list it saw at launch, so after the extension is replaced or reinstalled, relaunch vutusi and any open video app. `scripts/dev.sh` relaunches vutusi itself.
 - Still stuck: `systemextensionsctl reset` (removes all third-party system extensions; requires SIP to be disabled on recent macOS) or reboot.
 - Chrome and Slack cache the camera list; restart them after replacing the extension.
+
+## Release
+
+```sh
+scripts/release.sh    # Developer ID-signed build/release/vutusi.app
+scripts/notarize.sh   # notarize, staple, and zip as build/release/vutusi-<version>.zip
+```
+
+One-time setup, because the export signs manually (an API key cannot use cloud-managed Developer ID certificates):
+
+1. A "Developer ID Application" certificate with its private key in the login keychain (`security find-identity -v -p codesigning`).
+2. Two Developer ID provisioning profiles, created at <https://developer.apple.com/account/resources/profiles/add> (Distribution > Developer ID) with that certificate, downloaded, and copied to where `xcodebuild` looks for them (double-clicking installs a profile into System Settings > Device Management instead, which `xcodebuild` does not read):
+
+   ```sh
+   mkdir -p ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles
+   cp ~/Downloads/vutusi_*.provisionprofile ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/
+   ```
+
+
+   | App ID | Profile name |
+   |---|---|
+   | `com.kawarimidoll.vutusi` | `vutusi Developer ID` |
+   | `com.kawarimidoll.vutusi.CameraExtension` | `vutusi Camera Extension Developer ID` |
