@@ -68,25 +68,38 @@ async function physicalCameraId() {
   return device.deviceId
 }
 
+// Each start() takes a new generation; a stop() or a later start() makes an earlier
+// one stale, and a stale start() releases the camera it was still opening.
+let generation = 0
+
 window.vutusi = {
   async start() {
     if (running) return
     running = true
+    const mine = ++generation
     try {
       const deviceId = await physicalCameraId()
-      video.srcObject = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: { deviceId: { exact: deviceId }, width: 640, height: 480 },
       })
-      post({ type: 'camera', label: video.srcObject.getVideoTracks()[0]?.label })
+      if (mine !== generation) {
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
+      video.srcObject = stream
+      post({ type: 'camera', label: stream.getVideoTracks()[0]?.label })
       await video.play()
+      if (mine !== generation) return
       post({ type: 'camera', on: true })
       tick()
     } catch (e) {
+      if (mine !== generation) return
       running = false
       post({ type: 'error', message: `camera: ${e}` })
     }
   },
   stop() {
+    generation++
     running = false
     clearTimeout(timer)
     video.srcObject?.getTracks().forEach((t) => t.stop())
