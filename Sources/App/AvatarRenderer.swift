@@ -16,6 +16,10 @@ final class AvatarRenderer {
     private let camera = Entity()
     private var pool: CVPixelBufferPool!
     private var model: VRMEntity?
+    private var applier: TrackingApplier?
+    private var stats = TrackingStats()
+    /// The newest tracking result not yet rendered: when it arrived, and the page's latency.
+    private var unrenderedResult: (arrived: ContinuousClock.Instant, pageMs: Double)?
     private var timer: Timer?
     private var frameInFlight = false
     private let onFrame: @Sendable (CVPixelBuffer) -> Void
@@ -59,8 +63,16 @@ final class AvatarRenderer {
         if let old = self.model { renderer.entities.remove(old) }
         renderer.entities.append(model)
         self.model = model
+        applier = TrackingApplier(model: model)
         frame(model)
         logger.info("loaded \(url.lastPathComponent, privacy: .public)")
+    }
+
+    /// Poses the model from a tracking result; the next rendered frame shows it.
+    func apply(_ result: HolisticResult, jsLatencyMs: Double) {
+        applier?.update(result)
+        unrenderedResult = (.now, jsLatencyMs)
+        stats.record(result)
     }
 
     func setRunning(_ running: Bool) {
@@ -105,13 +117,18 @@ final class AvatarRenderer {
 
         model?.update(deltaTime: deltaTime)
         frameInFlight = true
+        let result = unrenderedResult
+        unrenderedResult = nil
         // Handed to the completion handler and not touched here afterwards.
         nonisolated(unsafe) let frame = pixelBuffer
         do {
             let output = try RealityRenderer.CameraOutput(.singleProjection(colorTexture: texture))
             try renderer.updateAndRender(deltaTime: deltaTime, cameraOutput: output, onComplete: { [onFrame, weak self] _ in
                 onFrame(frame)
-                Task { @MainActor in self?.frameInFlight = false }
+                Task { @MainActor in
+                    self?.frameInFlight = false
+                    if let result { self?.stats.recordLatency(pageMs: result.pageMs, app: .now - result.arrived) }
+                }
             })
         } catch {
             frameInFlight = false
@@ -129,6 +146,45 @@ final class AvatarRenderer {
         return CGColor(
             colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!,
             components: [encode(red), encode(green), encode(blue), 1])!
+    }
+}
+
+/// Tracking rate, detection rates and latency, logged every few seconds (plan Phase 3).
+/// Latency is measured in two parts on their own clocks and added up: the page's
+/// (camera frame to result) and the app's (result received to the frame showing it
+/// handed to the sink). Results replaced before a frame showed them are not counted.
+private struct TrackingStats {
+    private var start = ContinuousClock.now
+    private var results = 0
+    private var face = 0, pose = 0, left = 0, right = 0
+    private var totalsMs: [Double] = []
+
+    mutating func record(_ result: HolisticResult) {
+        results += 1
+        if result.face != nil { face += 1 }
+        if result.pose != nil { pose += 1 }
+        if result.leftHand != nil { left += 1 }
+        if result.rightHand != nil { right += 1 }
+        flushIfDue()
+    }
+
+    mutating func recordLatency(pageMs: Double, app: Duration) {
+        totalsMs.append(pageMs + Double(app.components.seconds) * 1000 + Double(app.components.attoseconds) / 1e15)
+    }
+
+    private mutating func flushIfDue() {
+        let elapsed = ContinuousClock.now - start
+        guard elapsed >= .seconds(5) else { return }
+        let rate = String(format: "%.1f", Double(results) / Double(elapsed.components.seconds))
+        let detected = [face, pose, left, right].map { $0 * 100 / results }
+        let sorted = totalsMs.sorted()
+        let median = sorted.isEmpty ? 0 : Int(sorted[sorted.count / 2])
+        let p95 = sorted.isEmpty ? 0 : Int(sorted[sorted.count * 95 / 100])
+        logger.info("""
+            tracking \(rate, privacy: .public)/s, detected face \(detected[0])% pose \(detected[1])% \
+            left \(detected[2])% right \(detected[3])%, latency median \(median) ms p95 \(p95) ms
+            """)
+        self = TrackingStats()
     }
 }
 

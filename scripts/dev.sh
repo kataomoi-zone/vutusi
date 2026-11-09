@@ -43,6 +43,8 @@ else
   nix shell nixpkgs#xcodegen -c xcodegen generate --quiet
 fi
 
+scripts/build-web.sh
+
 mkdir -p build
 log_file=build/xcodebuild.log
 # Derived from the extension's own files, so the installed extension is replaced only

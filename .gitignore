@@ -16,3 +16,7 @@
 *.p12
 *.cer
 *.certSigningRequest
+
+# Built by scripts/build-web.sh
+/web/vendor/
+/web/worker.js

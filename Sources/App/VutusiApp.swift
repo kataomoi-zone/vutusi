@@ -17,6 +17,7 @@ struct VutusiApp: App {
         runtime.onActiveChange = { active in
             bridge.setSending(active)
             avatar.renderer?.setRunning(active)
+            avatar.tracker?.setRunning(active)
         }
         _runtime = State(initialValue: runtime)
         _avatar = State(initialValue: avatar)
@@ -39,13 +40,14 @@ struct VutusiApp: App {
     }
 }
 
-/// Owns the renderer and the chosen model.
+/// Owns the renderer, the tracker that drives it, and the chosen model.
 /// LIMITATION: remembers the model by its path; Phase 4 copies models into Application Support.
 @MainActor
 @Observable
 final class AvatarController {
     private(set) var status = "none"
     @ObservationIgnored let renderer: AvatarRenderer?
+    @ObservationIgnored private(set) var tracker: WebTracker?
     @ObservationIgnored private let modelPathKey = "modelPath"
 
     init(bridge: VirtualCameraBridge) {
@@ -55,6 +57,9 @@ final class AvatarController {
             renderer = nil
             status = "renderer failed: \(error.localizedDescription)"
             return
+        }
+        tracker = WebTracker { [renderer] result, jsLatencyMs in
+            renderer?.apply(result, jsLatencyMs: jsLatencyMs)
         }
         if let path = UserDefaults.standard.string(forKey: modelPathKey) {
             load(URL(fileURLWithPath: path))

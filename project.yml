@@ -23,6 +23,10 @@ targets:
     sources:
       - Sources/App
       - Sources/Shared
+      # Built by scripts/build-web.sh; copied whole as the tracking page.
+      - path: web
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kawarimidoll.vutusi
