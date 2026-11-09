@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prepare web/, the tracking page bundled into the app as is: download MediaPipe
-# (once) into web/vendor/ and compile web-src/worker.ts with animovi's solvers into
+# into web/vendor/ and compile web-src/worker.ts with animovi's solvers into
 # web/worker.js. Both outputs are gitignored. The MediaPipe version and model match
 # animovi's (src/lib/mediapipe/constants.ts) so tracking behaves the same.
 #
@@ -12,7 +12,8 @@ cd "$(dirname "$0")/.."
 
 VERSION=0.10.35
 vendor=web/vendor
-if [[ ! -f "$vendor/holistic_landmarker.task" ]]; then
+if [[ "$(cat "$vendor/VERSION" 2> /dev/null)" != "$VERSION" ]]; then
+  rm -rf "$vendor"
   mkdir -p "$vendor/wasm"
   npm_base="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@$VERSION"
   curl -fsSL -o "$vendor/vision_bundle.mjs" "$npm_base/vision_bundle.mjs"
@@ -21,6 +22,8 @@ if [[ ! -f "$vendor/holistic_landmarker.task" ]]; then
   done
   curl -fsSL -o "$vendor/holistic_landmarker.task" \
     https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/1/holistic_landmarker.task
+  # Written last, so an interrupted download is fetched again next time.
+  echo "$VERSION" > "$vendor/VERSION"
 fi
 
 esbuild_args=(web-src/worker.ts --bundle --format=esm --external:./vendor/* --outfile=web/worker.js --log-level=warning)
