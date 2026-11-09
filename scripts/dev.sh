@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Build a signed Debug vutusi.app, install it to /Applications, and launch it.
 #
-# The app activates its Camera Extension on launch, so one run replaces the
-# installed extension with the freshly built one. CFBundleVersion is bumped to
-# the current epoch on every build because sysextd skips the replacement when
-# the version is unchanged.
+# The app activates its Camera Extension on launch, and sysextd replaces the
+# installed extension only when CFBundleVersion differs. The version is the
+# newest modification time among the extension's files, so a run replaces the
+# extension exactly when it changed.
 #
 # A running process keeps the CoreMediaIO device list it saw at launch, so the
 # app that replaced the extension never sees the new device. Once the new
@@ -45,7 +45,10 @@ fi
 
 mkdir -p build
 log_file=build/xcodebuild.log
-version="$(date +%s)"
+# Derived from the extension's own files, so the installed extension is replaced only
+# when it changed: video apps that are open keep a stale device list after a replacement
+# and lose the camera until they restart.
+version="$(find Sources/CameraExtension Sources/Shared Resources/CameraExtension project.yml -type f -exec stat -c %Y {} + | sort -n | tail -1)"
 echo "dev.sh: building (full log: $log_file)"
 if ! xcodebuild \
   -project vutusi.xcodeproj -scheme vutusi -configuration Debug \
