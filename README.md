@@ -27,6 +27,7 @@ On the first launch, approve the extension in System Settings > General > Login 
 systemextensionsctl list          # expect [activated enabled] for com.kawarimidoll.vutusi.CameraExtension
 ```
 
-- Stuck or stale extension: choose "Uninstall Camera Extension" from the menu bar, then run `scripts/dev.sh` again.
+- Stuck or stale extension: choose "Uninstall Camera Extension" and then "Install Camera Extension" from the menu bar, then quit and relaunch vutusi.
+- A running process keeps the camera list it saw at launch, so after the extension is replaced or reinstalled, relaunch vutusi and any open video app. `scripts/dev.sh` relaunches vutusi itself.
 - Still stuck: `systemextensionsctl reset` (removes all third-party system extensions; requires SIP to be disabled on recent macOS) or reboot.
 - Chrome and Slack cache the camera list; restart them after replacing the extension.
