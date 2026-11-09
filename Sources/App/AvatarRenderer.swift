@@ -1,11 +1,22 @@
+import CoreGraphics
 import CoreVideo
 import Foundation
+import ImageIO
 import Metal
 import RealityKit
 import VRMRealityKit
 import os
 
 private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "AvatarRenderer")
+
+/// How much of the model the camera shows.
+struct Framing: Equatable {
+    /// 1 shows from the top of the model down to the hips; 0.5 about the full body for
+    /// grown-up proportions, higher values close in on the face.
+    var zoom: Float = 1
+    /// Moves the model up (positive) or down in the frame, in frame heights.
+    var offset: Float = 0
+}
 
 /// Draws the avatar offscreen into IOSurface-backed BGRA pixel buffers, the format the
 /// Camera Extension streams, at a fixed rate while running.
@@ -27,16 +38,23 @@ final class AvatarRenderer {
     private var timer: Timer?
     private var frameInFlight = false
     private let onFrame: @Sendable (CVPixelBuffer) -> Void
+    private let commandQueue: MTLCommandQueue
+    /// The background image scaled to the frame, copied into each frame before the model.
+    private var backgroundTexture: MTLTexture?
+
+    var framing = Framing() {
+        didSet { if let model { frame(model) } }
+    }
 
     private let width = Int(CameraIdentifiers.width)
     private let height = Int(CameraIdentifiers.height)
 
     init(onFrame: @escaping @Sendable (CVPixelBuffer) -> Void) throws {
         self.onFrame = onFrame
+        commandQueue = device.makeCommandQueue()!
         renderer = try RealityRenderer()
         // Colors as they are: MToon is drawn for the camera image, not a photographic scene.
         renderer.cameraSettings.isToneMappingEnabled = false
-        renderer.cameraSettings.colorBackground = .color(Self.background(red: 0.2, green: 0.6, blue: 0.4))
 
         var cameraComponent = PerspectiveCameraComponent(near: 0.01, far: 100, fieldOfViewInDegrees: 30)
         cameraComponent.fieldOfViewOrientation = .vertical
@@ -93,17 +111,50 @@ final class AvatarRenderer {
         self.timer = timer
     }
 
-    /// Bust-up: from the top of the model down to the hips. The top comes from the model's
-    /// bounds, not the head bone, which sits at the bottom of the head and misses large
-    /// (chibi) heads.
-    /// LIMITATION: one fixed framing; Phase 4 adds composition presets and fine-tuning.
+    /// A solid background, as sRGB components.
+    func setBackground(red: Float, green: Float, blue: Float) {
+        backgroundTexture = nil
+        renderer.cameraSettings.colorBackground = .color(Self.background(red: red, green: green, blue: blue))
+    }
+
+    /// An image background, scaled to fill the frame and cropped.
+    func setBackgroundImage(_ url: URL) throws {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        var bytes = [UInt8](repeating: 0, count: width * height * 4)
+        let context = CGContext(
+            data: &bytes, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)!
+        let scale = max(CGFloat(width) / CGFloat(image.width), CGFloat(height) / CGFloat(image.height))
+        let size = CGSize(width: CGFloat(image.width) * scale, height: CGFloat(image.height) * scale)
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(
+            x: (CGFloat(width) - size.width) / 2, y: (CGFloat(height) - size.height) / 2,
+            width: size.width, height: size.height))
+
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
+        let texture = device.makeTexture(descriptor: descriptor)!
+        texture.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: bytes, bytesPerRow: width * 4)
+        backgroundTexture = texture
+        // Draw over what the target already holds: the image, copied in each frame.
+        renderer.cameraSettings.colorBackground = .outputTexture()
+    }
+
+    /// Keeps the top of the model near the top of the frame and scales from the
+    /// top-to-hips span. The top comes from the model's bounds, not the head bone, which
+    /// sits at the bottom of the head and misses large (chibi) heads.
     private func frame(_ model: VRMEntity) {
         let head = model.humanoid.node(for: .head)?.position(relativeTo: nil) ?? SIMD3<Float>(0, 1.4, 0)
         let hips = model.humanoid.node(for: .hips)?.position(relativeTo: nil) ?? SIMD3<Float>(0, 0.9, 0)
         let top = max(model.visualBounds(relativeTo: nil).max.y, head.y)
-        let visibleHeight = max(top - hips.y, 0.1) * 1.2
-        // 5% margin above the top.
-        let target = SIMD3<Float>(head.x, top - visibleHeight * 0.45, head.z)
+        let visibleHeight = max(top - hips.y, 0.1) * 1.2 / max(framing.zoom, 0.1)
+        // 5% margin above the top, then the user's offset.
+        let target = SIMD3<Float>(
+            head.x, top - visibleHeight * 0.45 - framing.offset * visibleHeight, head.z)
         let distance = visibleHeight / 2 / tan(15 * .pi / 180)
         camera.look(at: target, from: target + model.frontDirection * distance, relativeTo: nil)
     }
@@ -119,6 +170,14 @@ final class AvatarRenderer {
         descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
         descriptor.storageMode = .shared
         guard let texture = device.makeTexture(descriptor: descriptor, iosurface: surface, plane: 0) else { return }
+        if let backgroundTexture, let commands = commandQueue.makeCommandBuffer(),
+           let blit = commands.makeBlitCommandEncoder() {
+            blit.copy(from: backgroundTexture, to: texture)
+            blit.endEncoding()
+            commands.commit()
+            // RealityKit renders on its own queue; a 1280x720 copy is well under a millisecond.
+            commands.waitUntilCompleted()
+        }
 
         model?.update(deltaTime: deltaTime)
         frameInFlight = true

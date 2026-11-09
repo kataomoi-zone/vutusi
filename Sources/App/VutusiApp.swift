@@ -86,12 +86,66 @@ final class AvatarController {
         }
     }
 
+    var framing = Framing(
+        zoom: UserDefaults.standard.object(forKey: "framingZoom") as? Float ?? 1,
+        offset: UserDefaults.standard.float(forKey: "framingOffset")
+    ) {
+        didSet {
+            UserDefaults.standard.set(framing.offset, forKey: "framingOffset")
+            UserDefaults.standard.set(framing.zoom, forKey: "framingZoom")
+            renderer?.framing = framing
+        }
+    }
+
+    /// sRGB components of the solid background.
+    var backgroundColor = UserDefaults.standard.array(forKey: "backgroundColor") as? [Float]
+        ?? AvatarController.defaultBackgroundColor {
+        didSet {
+            UserDefaults.standard.set(backgroundColor, forKey: "backgroundColor")
+            applyBackground()
+        }
+    }
+
+    /// Shown instead of the color when set.
+    /// LIMITATION: remembered by path, like the model.
+    var backgroundImagePath = UserDefaults.standard.string(forKey: "backgroundImagePath") ?? "" {
+        didSet {
+            UserDefaults.standard.set(backgroundImagePath, forKey: "backgroundImagePath")
+            applyBackground()
+        }
+    }
+
     /// animovi's default.
     static let defaultSmoothing: Float = 0.5
+    static let defaultBackgroundColor: [Float] = [0.2, 0.6, 0.4]
 
     func resetSettings() {
         cameraName = ""
         smoothing = Self.defaultSmoothing
+        framing = Framing()
+        backgroundImagePath = ""
+        backgroundColor = Self.defaultBackgroundColor
+    }
+
+    func chooseBackgroundImage() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        backgroundImagePath = url.path
+    }
+
+    private func applyBackground() {
+        guard let renderer else { return }
+        if !backgroundImagePath.isEmpty {
+            do {
+                try renderer.setBackgroundImage(URL(fileURLWithPath: backgroundImagePath))
+                return
+            } catch {
+                status = "background image failed: \(error.localizedDescription)"
+            }
+        }
+        let c = backgroundColor
+        renderer.setBackground(red: c[0], green: c[1], blue: c[2])
     }
 
     init(bridge: VirtualCameraBridge) {
@@ -107,6 +161,8 @@ final class AvatarController {
         }
         tracker?.cameraName = cameraName
         renderer?.smoothing = smoothing
+        renderer?.framing = framing
+        applyBackground()
         if let path = UserDefaults.standard.string(forKey: modelPathKey) {
             load(URL(fileURLWithPath: path))
         }
