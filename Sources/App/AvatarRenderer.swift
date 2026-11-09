@@ -32,6 +32,9 @@ final class AvatarRenderer {
     var smoothing: Float = 0.5 {
         didSet { applier?.smoothing = smoothing }
     }
+    var trackedParts = Set(TrackingPart.allCases) {
+        didSet { applier?.trackedParts = trackedParts }
+    }
     private var stats = TrackingStats()
     /// The newest tracking result not yet rendered: when it arrived, and the page's latency.
     private var unrenderedResult: (arrived: ContinuousClock.Instant, pageMs: Double)?
@@ -94,6 +97,7 @@ final class AvatarRenderer {
         self.model = model
         applier = TrackingApplier(model: model)
         applier?.smoothing = smoothing
+        applier?.trackedParts = trackedParts
         frame(model)
         logger.info("loaded \(url.lastPathComponent, privacy: .public)")
     }

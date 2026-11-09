@@ -73,3 +73,23 @@ struct HandResult: Decodable, Sendable {
     var pinky: Finger
     var wristFrame: WristFrame?
 }
+
+// Rest values that ease a part the user turned off back to a neutral pose.
+extension FaceResult {
+    static let rest = FaceResult(
+        head: PitchYawRoll(pitch: 0, yaw: 0, roll: 0),
+        eyes: Eyes(leftBlink: 0, rightBlink: 0, gazeX: 0, gazeY: 0),
+        mouth: Mouth(open: 0, smile: 0))
+}
+
+extension PoseResult {
+    /// Upright, with no arms detected, which lowers both arms.
+    static let rest = PoseResult(spine: PitchYawRoll(pitch: 0, yaw: 0, roll: 0))
+}
+
+extension HandResult {
+    static let rest: HandResult = {
+        let open = Finger(curl: 0, spread: 0)
+        return HandResult(thumb: open, index: open, middle: open, ring: open, pinky: open)
+    }()
+}

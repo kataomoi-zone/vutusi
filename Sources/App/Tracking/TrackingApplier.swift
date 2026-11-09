@@ -12,10 +12,18 @@ import simd
 /// rotation `n` is first turned into the file's frame (VRM 1.0 faces the other way),
 /// then re-expressed against the node's rest as `parentRest⁻¹ · n · rest`, as three-vrm
 /// and VRMKit's own VRMA retargeting do.
+/// What the user can turn off. `body` is the torso; `hands` carries the arms with the
+/// hands, as raising a hand moves the whole arm.
+enum TrackingPart: String, CaseIterable {
+    case face, body, hands
+}
+
 @MainActor
 final class TrackingApplier {
     /// 0 (none) to 1. Filter responsiveness is 1 - smoothing, at least 0.1.
     var smoothing: Float = 0.5
+    /// Parts left out are eased to rest instead of following the camera.
+    var trackedParts = Set(TrackingPart.allCases)
 
     private let model: VRMEntity
     private let facesNegativeZ: Bool
@@ -45,6 +53,20 @@ final class TrackingApplier {
 
     /// `faceMetrics` are the worker's face ratios by name, empty without a face.
     func update(_ result: HolisticResult, faceMetrics: [String: Float] = [:]) {
+        var result = result
+        var faceMetrics = faceMetrics
+        if !trackedParts.contains(.face) {
+            result.face = .rest
+            faceMetrics = [:]
+        }
+        if !trackedParts.contains(.body) { result.pose?.spine = PoseResult.rest.spine }
+        if !trackedParts.contains(.hands) {
+            // No arms detected lowers them; open hands relax the fingers.
+            result.pose?.leftArm = nil
+            result.pose?.rightArm = nil
+            (result.leftHand, result.rightHand) = (.rest, .rest)
+        }
+
         if let face = result.face {
             faceActive = true
             applyFace(face, metrics: faceMetrics)

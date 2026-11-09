@@ -82,6 +82,13 @@ struct SettingsView: View {
                 Text("Higher is steadier but lags more.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                LabeledContent("Follow") {
+                    HStack {
+                        Toggle("Face", isOn: tracks(.face))
+                        Toggle("Torso", isOn: tracks(.body))
+                        Toggle("Arms & Hands", isOn: tracks(.hands))
+                    }
+                }
             }
             Section("Framing") {
                 LabeledContent("Zoom") {
@@ -135,6 +142,14 @@ struct SettingsView: View {
         } set: { enabled in
             try? enabled ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
             opensAtLogin = SMAppService.mainApp.status == .enabled
+        }
+    }
+
+    private func tracks(_ part: TrackingPart) -> Binding<Bool> {
+        Binding {
+            avatar.trackedParts.contains(part)
+        } set: { on in
+            if on { avatar.trackedParts.insert(part) } else { avatar.trackedParts.remove(part) }
         }
     }
 

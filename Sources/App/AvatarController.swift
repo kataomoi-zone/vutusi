@@ -45,6 +45,16 @@ final class AvatarController {
         }
     }
 
+    var trackedParts = Set(
+        (UserDefaults.standard.stringArray(forKey: "trackedParts") ?? TrackingPart.allCases.map(\.rawValue))
+            .compactMap(TrackingPart.init(rawValue:))
+    ) {
+        didSet {
+            UserDefaults.standard.set(trackedParts.map(\.rawValue), forKey: "trackedParts")
+            renderer?.trackedParts = trackedParts
+        }
+    }
+
     var framing = Framing(
         zoom: UserDefaults.standard.object(forKey: "framingZoom") as? Float ?? 1,
         offset: UserDefaults.standard.float(forKey: "framingOffset")
@@ -80,6 +90,7 @@ final class AvatarController {
     func resetSettings() {
         cameraName = ""
         smoothing = Self.defaultSmoothing
+        trackedParts = Set(TrackingPart.allCases)
         framing = Framing()
         removeBackgroundImage()
         backgroundColor = Self.defaultBackgroundColor
@@ -151,6 +162,7 @@ final class AvatarController {
         tracker?.onCameraError = { [weak self] _ in self?.refreshCameraAccess() }
         refreshCameraAccess()
         renderer?.smoothing = smoothing
+        renderer?.trackedParts = trackedParts
         renderer?.framing = framing
         applyBackground()
 
