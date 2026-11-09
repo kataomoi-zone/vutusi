@@ -5,14 +5,25 @@ struct SettingsView: View {
     @Bindable var avatar: AvatarController
     let runtime: RuntimeState
     @State private var cameras: [String] = []
+    /// Mirrors only the preview, like a video app's self view; video apps get the frame as is.
+    @AppStorage("mirrorPreview") private var mirrorPreview = false
 
     var body: some View {
         // The preview sits beside the form, large and never scrolled away, so the framing
         // and background can be adjusted while watching it.
         HStack(spacing: 0) {
             PreviewLayerView(layer: avatar.preview.layer)
+                .scaleEffect(x: mirrorPreview ? -1 : 1, y: 1)
                 .frame(width: 640, height: 360)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(alignment: .bottomTrailing) {
+                    Toggle(isOn: $mirrorPreview) {
+                        Image(systemName: "arrow.left.and.right.righttriangle.left.righttriangle.right")
+                    }
+                    .toggleStyle(.button)
+                    .help("Mirror the preview (video apps are not affected)")
+                    .padding(8)
+                }
                 .padding(20)
             form
                 .frame(width: 400)
