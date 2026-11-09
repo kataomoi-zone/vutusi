@@ -284,7 +284,8 @@ func bakeEmissiveStrength(_ glb: Data) throws -> Data {
         Int(glb.subdata(in: offset..<offset + 4).withUnsafeBytes { $0.loadUnaligned(as: UInt32.self) })
     }
     // GLB: 12-byte header, then the JSON chunk (length, type, payload), then the rest.
-    guard glb.count > 20 else { return glb }
+    // Anything else is left for VRMKit to reject with an error instead of trapping here.
+    guard glb.count > 20, glb.prefix(4) == Data("glTF".utf8), 20 + u32(12) <= glb.count else { return glb }
     let jsonRange = 20..<20 + u32(12)
     guard var json = try JSONSerialization.jsonObject(with: glb.subdata(in: jsonRange)) as? [String: Any],
           var materials = json["materials"] as? [[String: Any]] else { return glb }
