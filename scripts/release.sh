@@ -16,26 +16,12 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 cd "$REPO_ROOT"
+# shellcheck source=scripts/lib.sh
+source scripts/lib.sh
 
-if [[ -z "${VUTUSI_ASC_KEY_ID:-}" && -f .envrc ]]; then
-  # shellcheck disable=SC1091
-  source .envrc
-fi
-missing=()
-for v in VUTUSI_ASC_KEY_PATH VUTUSI_ASC_KEY_ID VUTUSI_ASC_ISSUER; do
-  [[ -n "${!v:-}" ]] || missing+=("$v")
-done
-if (( ${#missing[@]} > 0 )); then
-  echo "release.sh: missing env: ${missing[*]} (see .envrc.sample)" >&2
-  exit 1
-fi
-
+require_asc_key
 scripts/build-web.sh
-if command -v xcodegen > /dev/null; then
-  xcodegen generate --quiet
-else
-  nix shell nixpkgs#xcodegen -c xcodegen generate --quiet
-fi
+xcodegen_generate
 
 out=build/release
 mkdir -p "$out"
