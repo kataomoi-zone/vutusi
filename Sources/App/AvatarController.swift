@@ -94,21 +94,23 @@ final class AvatarController {
         try? setBackgroundImage(copying: nil)
     }
 
-    /// Keeps one copy, Application Support/vutusi/background.<ext>, replacing the last.
+    /// Keeps one copy, Application Support/vutusi/background-<uuid>.<ext>. The new copy is
+    /// made before the old ones go, so a failed copy keeps the current background, and
+    /// choosing the current copy itself still works.
     private func setBackgroundImage(copying source: URL?) throws {
         let fileManager = FileManager.default
-        let old = (try? fileManager.contentsOfDirectory(at: AppFiles.directory, includingPropertiesForKeys: nil)) ?? []
-        for file in old where file.lastPathComponent.hasPrefix("background.") {
-            try fileManager.removeItem(at: file)
+        var copy: URL?
+        if let source {
+            try fileManager.createDirectory(at: AppFiles.directory, withIntermediateDirectories: true)
+            let destination = AppFiles.directory.appending(path: "background-\(UUID().uuidString).\(source.pathExtension)")
+            try fileManager.copyItem(at: source, to: destination)
+            copy = destination
         }
-        guard let source else {
-            backgroundImagePath = ""
-            return
+        let files = (try? fileManager.contentsOfDirectory(at: AppFiles.directory, includingPropertiesForKeys: nil)) ?? []
+        for file in files where file.lastPathComponent.hasPrefix("background") && file != copy {
+            try? fileManager.removeItem(at: file)
         }
-        try fileManager.createDirectory(at: AppFiles.directory, withIntermediateDirectories: true)
-        let copy = AppFiles.directory.appending(path: "background.\(source.pathExtension)")
-        try fileManager.copyItem(at: source, to: copy)
-        backgroundImagePath = copy.path
+        backgroundImagePath = copy?.path ?? ""
     }
 
     private func applyBackground() {

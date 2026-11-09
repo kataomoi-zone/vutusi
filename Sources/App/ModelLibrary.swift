@@ -21,15 +21,22 @@ struct ModelLibrary {
         directory.appending(path: name)
     }
 
-    /// Copies the file in under its own name, replacing a model of the same name.
+    /// Copies the file in under its own name, replacing a model of the same name. The copy
+    /// goes to a temporary name first, so a failed copy keeps the model it would replace.
     func add(_ source: URL) throws -> String {
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let fileManager = FileManager.default
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         let name = source.lastPathComponent
         let destination = url(for: name)
-        if FileManager.default.fileExists(atPath: destination.path) {
-            try FileManager.default.removeItem(at: destination)
+        // Adding the library's own copy, picked from its folder, changes nothing.
+        guard source.standardizedFileURL != destination.standardizedFileURL else { return name }
+        let temporary = directory.appending(path: ".\(UUID().uuidString).tmp")
+        try fileManager.copyItem(at: source, to: temporary)
+        if fileManager.fileExists(atPath: destination.path) {
+            _ = try fileManager.replaceItemAt(destination, withItemAt: temporary)
+        } else {
+            try fileManager.moveItem(at: temporary, to: destination)
         }
-        try FileManager.default.copyItem(at: source, to: destination)
         return name
     }
 
