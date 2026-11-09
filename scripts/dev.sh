@@ -48,7 +48,9 @@ log_file=build/xcodebuild.log
 # Derived from the extension's own files, so the installed extension is replaced only
 # when it changed: video apps that are open keep a stale device list after a replacement
 # and lose the camera until they restart.
-version="$(find Sources/CameraExtension Sources/Shared Resources/CameraExtension project.yml -type f -exec stat -c %Y {} + | sort -n | tail -1)"
+# project.yml is left out because app-only edits there are common; after changing the
+# extension target's build settings, touch a file under Resources/CameraExtension.
+version="$(find Sources/CameraExtension Sources/Shared Resources/CameraExtension -type f -exec stat -c %Y {} + | sort -n | tail -1)"
 echo "dev.sh: building (full log: $log_file)"
 if ! xcodebuild \
   -project vutusi.xcodeproj -scheme vutusi -configuration Debug \
