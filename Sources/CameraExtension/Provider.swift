@@ -1,62 +1,72 @@
-import CoreMediaIO
+import CoreGraphics
+@preconcurrency import CoreMediaIO
+@preconcurrency import CoreVideo
+import CoreText
 import Foundation
 import IOKit.audio
 import os
 
 let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "CameraExtension")
 
-private let frameRate: Int32 = 30
-private let width: Int32 = 1280
-private let height: Int32 = 720
-
-// Meet / Slack remember the selected camera by these IDs, so they must stay fixed.
-private let deviceID = UUID(uuidString: "F34B316E-4D3A-4717-B767-6C57EFDB36F4")!
-private let sourceStreamID = UUID(uuidString: "6CF13C9E-9796-4921-B060-53A33A146C14")!
-
-// LIMITATION: test pattern only (a moving white stripe from Apple's template).
-// The sink stream that receives frames from the app arrives in Phase 1.
-// @unchecked: every mutable member is touched only on `queue`.
+/// Frames from the app arrive on the sink stream and go out unchanged on the source stream.
+/// While the app sends nothing, the source shows a static "waiting" frame.
+///
+/// The sink is drained only while a video app runs the source. The app reads a full sink
+/// queue as "nobody is watching" (see VirtualCameraBridge).
+/// @unchecked: every mutable member is touched only on `queue`.
 final class DeviceSource: NSObject, CMIOExtensionDeviceSource, @unchecked Sendable {
     private(set) var device: CMIOExtensionDevice!
-    private var streamSource: StreamSource!
+    private var sourceStream: CMIOExtensionStream!
+    private var sinkStream: CMIOExtensionStream!
+    // CMIOExtensionStream holds its source weakly; without these the streams report no formats
+    // and AVFoundation hides the device.
+    private var streamSources: [StreamSource] = []
     private let queue = DispatchQueue(label: "com.kawarimidoll.vutusi.CameraExtension.frames", qos: .userInteractive)
-    private var timer: DispatchSourceTimer?
-    private var streamingCount = 0
-    private var stripeRow = 0
-    private var stripeStep = 4
 
     private var formatDescription: CMFormatDescription!
-    private var bufferPool: CVPixelBufferPool!
+    private var waitingFrame: CVPixelBuffer!
+
+    private var sourceClients = 0
+    private var sourceTimer: DispatchSourceTimer?
+    private var sinkClient: CMIOExtensionClient?
+    private var sinkTimer: DispatchSourceTimer?
+    private var lastSinkFrameTime: UInt64 = 0
 
     init(localizedName: String) {
         super.init()
-        device = CMIOExtensionDevice(localizedName: localizedName, deviceID: deviceID, legacyDeviceID: nil, source: self)
+        device = CMIOExtensionDevice(
+            localizedName: localizedName, deviceID: CameraIdentifiers.deviceID, legacyDeviceID: nil, source: self)
 
         CMVideoFormatDescriptionCreate(
             allocator: kCFAllocatorDefault, codecType: kCVPixelFormatType_32BGRA,
-            width: width, height: height, extensions: nil, formatDescriptionOut: &formatDescription)
-        let attributes: NSDictionary = [
-            kCVPixelBufferWidthKey: width,
-            kCVPixelBufferHeightKey: height,
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
-            kCVPixelBufferIOSurfacePropertiesKey: [:] as NSDictionary,
-        ]
-        CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, attributes, &bufferPool)
+            width: CameraIdentifiers.width, height: CameraIdentifiers.height, extensions: nil,
+            formatDescriptionOut: &formatDescription)
+        waitingFrame = makeWaitingFrame()
 
-        let frameDuration = CMTime(value: 1, timescale: frameRate)
+        let frameDuration = CMTime(value: 1, timescale: CameraIdentifiers.frameRate)
         let format = CMIOExtensionStreamFormat(
             formatDescription: formatDescription, maxFrameDuration: frameDuration,
             minFrameDuration: frameDuration, validFrameDurations: nil)
-        streamSource = StreamSource(
-            localizedName: "vutusi Camera.Video", streamID: sourceStreamID, streamFormat: format, device: device)
+        let source = StreamSource(device: self, format: format, isSink: false)
+        let sink = StreamSource(device: self, format: format, isSink: true)
+        streamSources = [source, sink]
+        sourceStream = CMIOExtensionStream(
+            localizedName: CameraIdentifiers.sourceStreamName, streamID: CameraIdentifiers.sourceStreamID,
+            direction: .source, clockType: .hostTime, source: source)
+        sinkStream = CMIOExtensionStream(
+            localizedName: CameraIdentifiers.sinkStreamName, streamID: CameraIdentifiers.sinkStreamID,
+            direction: .sink, clockType: .hostTime, source: sink)
         do {
-            try device.addStream(streamSource.stream)
+            try device.addStream(sourceStream)
+            try device.addStream(sinkStream)
         } catch {
             fatalError("Failed to add stream: \(error.localizedDescription)")
         }
     }
 
-    var availableProperties: Set<CMIOExtensionProperty> { [.deviceTransportType, .deviceModel] }
+    var availableProperties: Set<CMIOExtensionProperty> {
+        [.deviceTransportType, .deviceModel]
+    }
 
     func deviceProperties(forProperties properties: Set<CMIOExtensionProperty>) throws -> CMIOExtensionDeviceProperties {
         let deviceProperties = CMIOExtensionDeviceProperties(dictionary: [:])
@@ -64,89 +74,155 @@ final class DeviceSource: NSObject, CMIOExtensionDeviceSource, @unchecked Sendab
             deviceProperties.transportType = kIOAudioDeviceTransportTypeVirtual
         }
         if properties.contains(.deviceModel) {
-            deviceProperties.model = "vutusi Camera"
+            deviceProperties.model = CameraIdentifiers.deviceName
         }
         return deviceProperties
     }
 
     func setDeviceProperties(_ deviceProperties: CMIOExtensionDeviceProperties) throws {}
 
-    func startStreaming() {
+    // MARK: Source (to video apps)
+
+    func startSource() {
         queue.async { [self] in
-            streamingCount += 1
-            guard timer == nil else { return }
+            sourceClients += 1
+            guard sourceTimer == nil else { return }
             logger.info("source stream started")
             let timer = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
-            timer.schedule(deadline: .now(), repeating: 1.0 / Double(frameRate), leeway: .nanoseconds(0))
-            timer.setEventHandler { [self] in sendFrame() }
+            timer.schedule(deadline: .now(), repeating: 1.0 / Double(CameraIdentifiers.frameRate), leeway: .nanoseconds(0))
+            timer.setEventHandler { [self] in sendWaitingFrameIfIdle() }
             timer.resume()
-            self.timer = timer
+            sourceTimer = timer
         }
     }
 
-    func stopStreaming() {
+    func stopSource() {
         queue.async { [self] in
-            streamingCount = max(0, streamingCount - 1)
-            guard streamingCount == 0 else { return }
+            sourceClients = max(0, sourceClients - 1)
+            guard sourceClients == 0 else { return }
             logger.info("source stream stopped")
-            timer?.cancel()
-            timer = nil
+            sourceTimer?.cancel()
+            sourceTimer = nil
         }
     }
 
-    private func sendFrame() {
-        var pixelBuffer: CVPixelBuffer?
-        let err = CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, bufferPool, &pixelBuffer)
-        guard err == kCVReturnSuccess, let pixelBuffer else {
-            logger.error("out of pixel buffers: \(err)")
-            return
-        }
+    private func sendWaitingFrameIfIdle() {
+        let now = hostTimeNanoseconds()
+        guard now - lastSinkFrameTime > 500_000_000 else { return }
+        send(waitingFrame, at: now)
+    }
 
-        CVPixelBufferLockBaseAddress(pixelBuffer, [])
-        let base = CVPixelBufferGetBaseAddress(pixelBuffer)!
-        let rowBytes = CVPixelBufferGetBytesPerRow(pixelBuffer)
-        let rows = CVPixelBufferGetHeight(pixelBuffer)
-        let stripeHeight = 20
-        memset(base, 0, rowBytes * rows)
-        memset(base + rowBytes * stripeRow, 0xFF, rowBytes * stripeHeight)
-        CVPixelBufferUnlockBaseAddress(pixelBuffer, [])
-
-        stripeRow += stripeStep
-        if stripeRow <= 0 || stripeRow >= rows - stripeHeight {
-            stripeStep = -stripeStep
-            stripeRow = min(max(stripeRow, 0), rows - stripeHeight)
-        }
-
-        var timing = CMSampleTimingInfo()
-        timing.presentationTimeStamp = CMClockGetTime(CMClockGetHostTimeClock())
+    private func send(_ pixelBuffer: CVPixelBuffer, at hostTime: UInt64) {
+        var timing = CMSampleTimingInfo(
+            duration: CMTime(value: 1, timescale: CameraIdentifiers.frameRate),
+            presentationTimeStamp: CMTime(value: CMTimeValue(hostTime), timescale: 1_000_000_000),
+            decodeTimeStamp: .invalid)
         var sampleBuffer: CMSampleBuffer?
         let status = CMSampleBufferCreateForImageBuffer(
             allocator: kCFAllocatorDefault, imageBuffer: pixelBuffer, dataReady: true,
             makeDataReadyCallback: nil, refcon: nil, formatDescription: formatDescription,
             sampleTiming: &timing, sampleBufferOut: &sampleBuffer)
         guard status == noErr, let sampleBuffer else { return }
-        streamSource.stream.send(
-            sampleBuffer, discontinuity: [],
-            hostTimeInNanoseconds: UInt64(timing.presentationTimeStamp.seconds * Double(NSEC_PER_SEC)))
+        sourceStream.send(sampleBuffer, discontinuity: [], hostTimeInNanoseconds: hostTime)
+    }
+
+    // MARK: Sink (from the app)
+
+    func startSink(client: CMIOExtensionClient) {
+        queue.async { [self] in
+            sinkClient = client
+            guard sinkTimer == nil else { return }
+            logger.info("sink stream started")
+            let timer = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
+            timer.schedule(deadline: .now(), repeating: 1.0 / Double(CameraIdentifiers.frameRate), leeway: .nanoseconds(0))
+            timer.setEventHandler { [self] in consumeSinkFrame() }
+            timer.resume()
+            sinkTimer = timer
+        }
+    }
+
+    func stopSink() {
+        queue.async { [self] in
+            logger.info("sink stream stopped")
+            sinkTimer?.cancel()
+            sinkTimer = nil
+            sinkClient = nil
+        }
+    }
+
+    private func consumeSinkFrame() {
+        guard let sinkClient, sourceClients > 0 else { return }
+        sinkStream.consumeSampleBuffer(from: sinkClient) { [self] sampleBuffer, sequenceNumber, _, _, error in
+            guard let sampleBuffer, let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+                if let error { logger.debug("sink: \(error.localizedDescription, privacy: .public)") }
+                return
+            }
+            let now = hostTimeNanoseconds()
+            // Handed to `queue` and only read there.
+            nonisolated(unsafe) let frame = imageBuffer
+            queue.async { [self] in
+                lastSinkFrameTime = now
+                if sourceClients > 0 { send(frame, at: now) }
+            }
+            sinkStream.notifyScheduledOutputChanged(
+                CMIOExtensionScheduledOutput(sequenceNumber: sequenceNumber, hostTimeInNanoseconds: now))
+        }
+    }
+
+    private func makeWaitingFrame() -> CVPixelBuffer {
+        let width = Int(CameraIdentifiers.width), height = Int(CameraIdentifiers.height)
+        var pixelBuffer: CVPixelBuffer?
+        CVPixelBufferCreate(
+            kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA,
+            [kCVPixelBufferIOSurfacePropertiesKey: [:] as NSDictionary] as NSDictionary, &pixelBuffer)
+        let buffer = pixelBuffer!
+        CVPixelBufferLockBaseAddress(buffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+        let context = CGContext(
+            data: CVPixelBufferGetBaseAddress(buffer), width: width, height: height, bitsPerComponent: 8,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer), space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)!
+        context.setFillColor(CGColor(gray: 0.15, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        let text = NSAttributedString(string: "vutusi: waiting for the app", attributes: [
+            NSAttributedString.Key(kCTFontAttributeName as String): CTFontCreateWithName("Helvetica" as CFString, 40, nil),
+            NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(gray: 0.7, alpha: 1),
+        ])
+        let line = CTLineCreateWithAttributedString(text)
+        let bounds = CTLineGetBoundsWithOptions(line, [])
+        context.textPosition = CGPoint(x: (CGFloat(width) - bounds.width) / 2, y: (CGFloat(height) - bounds.height) / 2)
+        CTLineDraw(line, context)
+        return buffer
     }
 }
 
-final class StreamSource: NSObject, CMIOExtensionStreamSource {
-    private(set) var stream: CMIOExtensionStream!
-    let device: CMIOExtensionDevice
-    private let streamFormat: CMIOExtensionStreamFormat
+private func hostTimeNanoseconds() -> UInt64 {
+    UInt64(CMClockGetTime(CMClockGetHostTimeClock()).seconds * Double(NSEC_PER_SEC))
+}
 
-    init(localizedName: String, streamID: UUID, streamFormat: CMIOExtensionStreamFormat, device: CMIOExtensionDevice) {
+final class StreamSource: NSObject, CMIOExtensionStreamSource {
+    private unowned let device: DeviceSource
+    private let format: CMIOExtensionStreamFormat
+    private let isSink: Bool
+
+    init(device: DeviceSource, format: CMIOExtensionStreamFormat, isSink: Bool) {
         self.device = device
-        self.streamFormat = streamFormat
-        super.init()
-        stream = CMIOExtensionStream(
-            localizedName: localizedName, streamID: streamID, direction: .source, clockType: .hostTime, source: self)
+        self.format = format
+        self.isSink = isSink
     }
 
-    var formats: [CMIOExtensionStreamFormat] { [streamFormat] }
+    var formats: [CMIOExtensionStreamFormat] { [format] }
 
-    var availableProperties: Set<CMIOExtensionProperty> { [.streamActiveFormatIndex, .streamFrameDuration] }
+    var availableProperties: Set<CMIOExtensionProperty> {
+        var properties: Set<CMIOExtensionProperty> = [.streamActiveFormatIndex, .streamFrameDuration]
+        if isSink {
+            properties.formUnion([
+                .streamSinkBufferQueueSize, .streamSinkBuffersRequiredForStartup,
+                .streamSinkBufferUnderrunCount, .streamSinkEndOfData,
+            ])
+        }
+        return properties
+    }
 
     func streamProperties(forProperties properties: Set<CMIOExtensionProperty>) throws -> CMIOExtensionStreamProperties {
         let streamProperties = CMIOExtensionStreamProperties(dictionary: [:])
@@ -154,20 +230,44 @@ final class StreamSource: NSObject, CMIOExtensionStreamSource {
             streamProperties.activeFormatIndex = 0
         }
         if properties.contains(.streamFrameDuration) {
-            streamProperties.frameDuration = CMTime(value: 1, timescale: frameRate)
+            streamProperties.frameDuration = CMTime(value: 1, timescale: CameraIdentifiers.frameRate)
+        }
+        if properties.contains(.streamSinkBufferQueueSize) {
+            streamProperties.sinkBufferQueueSize = 1
+        }
+        if properties.contains(.streamSinkBuffersRequiredForStartup) {
+            streamProperties.sinkBuffersRequiredForStartup = 1
+        }
+        if properties.contains(.streamSinkBufferUnderrunCount) {
+            streamProperties.sinkBufferUnderrunCount = 0
+        }
+        if properties.contains(.streamSinkEndOfData) {
+            streamProperties.sinkEndOfData = 0
         }
         return streamProperties
     }
 
     func setStreamProperties(_ streamProperties: CMIOExtensionStreamProperties) throws {}
 
-    func authorizedToStartStream(for client: CMIOExtensionClient) -> Bool { true }
+    /// The sink has to name the client it consumes from, and only this callback reveals it.
+    private var sinkClient: CMIOExtensionClient?
 
-    func startStream() throws { deviceSource.startStreaming() }
+    func authorizedToStartStream(for client: CMIOExtensionClient) -> Bool {
+        if isSink { sinkClient = client }
+        return true
+    }
 
-    func stopStream() throws { deviceSource.stopStreaming() }
+    func startStream() throws {
+        if !isSink {
+            device.startSource()
+        } else if let sinkClient {
+            device.startSink(client: sinkClient)
+        }
+    }
 
-    private var deviceSource: DeviceSource { device.source as! DeviceSource }
+    func stopStream() throws {
+        if isSink { device.stopSink() } else { device.stopSource() }
+    }
 }
 
 final class ProviderSource: NSObject, CMIOExtensionProviderSource {
@@ -177,7 +277,7 @@ final class ProviderSource: NSObject, CMIOExtensionProviderSource {
     init(clientQueue: DispatchQueue?) {
         super.init()
         provider = CMIOExtensionProvider(source: self, clientQueue: clientQueue)
-        deviceSource = DeviceSource(localizedName: "vutusi Camera")
+        deviceSource = DeviceSource(localizedName: CameraIdentifiers.deviceName)
         do {
             try provider.addDevice(deviceSource.device)
         } catch {
