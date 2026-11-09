@@ -16,9 +16,9 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
     private let window: NSWindow
     private var loaded = false
     private var wantsRunning = false
-    private let onResult: (HolisticResult, _ jsLatencyMs: Double) -> Void
+    private let onResult: (HolisticResult, _ faceMetrics: [String: Float], _ jsLatencyMs: Double) -> Void
 
-    init(onResult: @escaping (HolisticResult, Double) -> Void) {
+    init(onResult: @escaping (HolisticResult, [String: Float], Double) -> Void) {
         self.onResult = onResult
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(BundleSchemeHandler(), forURLScheme: "vutusi")
@@ -61,7 +61,7 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
                 logger.error("undecodable result: \(body.prefix(200), privacy: .public)")
                 return
             }
-            onResult(message.result, message.jsLatencyMs)
+            onResult(message.result, message.faceMetrics ?? [:], message.jsLatencyMs)
         case "loaded":
             loaded = true
             setRunning(wantsRunning)
@@ -94,6 +94,7 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
 
     private struct ResultMessage: Decodable {
         var result: HolisticResult
+        var faceMetrics: [String: Float]?
         var jsLatencyMs: Double
     }
 }

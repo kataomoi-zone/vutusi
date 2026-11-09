@@ -58,8 +58,8 @@ final class AvatarController {
             status = "renderer failed: \(error.localizedDescription)"
             return
         }
-        tracker = WebTracker { [renderer] result, jsLatencyMs in
-            renderer?.apply(result, jsLatencyMs: jsLatencyMs)
+        tracker = WebTracker { [renderer] result, faceMetrics, jsLatencyMs in
+            renderer?.apply(result, faceMetrics: faceMetrics, jsLatencyMs: jsLatencyMs)
         }
         if let path = UserDefaults.standard.string(forKey: modelPathKey) {
             load(URL(fileURLWithPath: path))

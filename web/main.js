@@ -24,7 +24,7 @@ worker.onmessage = (e) => {
   } else if (msg.type === 'result') {
     busy = false
     // Capture to result, on the page's clock; Swift adds its own part.
-    post({ type: 'result', result: msg.result, jsLatencyMs: performance.now() - msg.timestamp })
+    post({ type: 'result', result: msg.result, faceMetrics: msg.faceMetrics, jsLatencyMs: performance.now() - msg.timestamp })
   } else {
     busy = false
     post(msg)

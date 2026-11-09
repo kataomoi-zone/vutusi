@@ -69,10 +69,10 @@ final class AvatarRenderer {
     }
 
     /// Poses the model from a tracking result; the next rendered frame shows it.
-    func apply(_ result: HolisticResult, jsLatencyMs: Double) {
-        applier?.update(result)
+    func apply(_ result: HolisticResult, faceMetrics: [String: Float], jsLatencyMs: Double) {
+        applier?.update(result, faceMetrics: faceMetrics)
         unrenderedResult = (.now, jsLatencyMs)
-        stats.record(result)
+        stats.record(result, faceMetrics: faceMetrics)
     }
 
     func setRunning(_ running: Bool) {
@@ -158,8 +158,10 @@ private struct TrackingStats {
     private var results = 0
     private var face = 0, pose = 0, left = 0, right = 0
     private var totalsMs: [Double] = []
+    private var faceMetrics: [String: [Float]] = [:]
 
-    mutating func record(_ result: HolisticResult) {
+    mutating func record(_ result: HolisticResult, faceMetrics metrics: [String: Float]) {
+        for (name, value) in metrics { faceMetrics[name, default: []].append(value) }
         results += 1
         if result.face != nil { face += 1 }
         if result.pose != nil { pose += 1 }
@@ -180,9 +182,15 @@ private struct TrackingStats {
         let sorted = totalsMs.sorted()
         let median = sorted.isEmpty ? 0 : Int(sorted[sorted.count / 2])
         let p95 = sorted.isEmpty ? 0 : Int(sorted[sorted.count * 95 / 100])
+        // min / median / max of each face metric, to set TrackingApplier's ranges from.
+        let metrics = faceMetrics.keys.sorted().map { name in
+            let v = faceMetrics[name]!.sorted()
+            return String(format: "%@ %.2f/%.2f/%.2f", name, v.first!, v[v.count / 2], v.last!)
+        }.joined(separator: ", ")
         logger.info("""
             tracking \(rate, privacy: .public)/s, detected face \(detected[0])% pose \(detected[1])% \
-            left \(detected[2])% right \(detected[3])%, latency median \(median) ms p95 \(p95) ms
+            left \(detected[2])% right \(detected[3])%, latency median \(median) ms p95 \(p95) ms; \
+            \(metrics, privacy: .public)
             """)
         self = TrackingStats()
     }

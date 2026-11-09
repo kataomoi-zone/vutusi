@@ -26,7 +26,7 @@ final class TrackingApplier {
     private var handActive = (left: false, right: false)
 
     // Eye and mouth values ignore the smoothing setting, so they stay responsive.
-    private static let fastKeys: Set<String> = ["gazeX", "gazeY", "blinkLeft", "blinkRight", "aa", "happy"]
+    private static let fastKeys: Set<String> = ["gazeX", "gazeY", "blinkLeft", "blinkRight", "aa", "oh", "ou", "happy"]
     private static let fastResponsiveness: Float = 0.9
     private static let minResponsiveness: Float = 0.1
     /// Upper-arm roll for the arms-down pose, 72° below horizontal.
@@ -43,10 +43,11 @@ final class TrackingApplier {
         }
     }
 
-    func update(_ result: HolisticResult) {
+    /// `faceMetrics` are the worker's face ratios by name, empty without a face.
+    func update(_ result: HolisticResult, faceMetrics: [String: Float] = [:]) {
         if let face = result.face {
             faceActive = true
-            applyFace(face)
+            applyFace(face, metrics: faceMetrics)
         } else if faceActive {
             faceActive = false
             resetFilters(prefixes: ["head", "gaze"])
@@ -81,18 +82,57 @@ final class TrackingApplier {
 
     // MARK: Face
 
-    private func applyFace(_ face: FaceResult) {
+    private func applyFace(_ face: FaceResult, metrics: [String: Float]) {
         setBone(.head, smooth("head", face.head.euler))
         // Gaze in [-1, 1] turns the eyes at most 30°; +x is toward the avatar's left, +y up.
         let yaw = smooth("gazeX", face.eyes.gazeX) * 30
         let pitch = smooth("gazeY", face.eyes.gazeY) * 30
         model.lookAtTarget = .angles(yaw: yaw, pitch: pitch)
-        model.setExpressions([
-            .preset(.blinkLeft): CGFloat(smooth("blinkLeft", face.eyes.leftBlink)),
-            .preset(.blinkRight): CGFloat(smooth("blinkRight", face.eyes.rightBlink)),
-            .preset(.aa): CGFloat(smooth("aa", face.mouth.open)),
-            .preset(.happy): CGFloat(smooth("happy", face.mouth.smile)),
-        ])
+        var weights: [String: Float] = ["happy": face.mouth.smile]
+        if metrics.isEmpty {
+            weights["blinkLeft"] = face.eyes.leftBlink
+            weights["blinkRight"] = face.eyes.rightBlink
+            weights["aa"] = face.mouth.open
+        } else {
+            weights.merge(Self.expressions(from: metrics)) { $1 }
+        }
+        model.setExpressions(Dictionary(uniqueKeysWithValues: weights.compactMap { name, value in
+            ExpressionPreset(rawValue: name).map { (ExpressionKey.preset($0), CGFloat(smooth(name, value))) }
+        }))
+    }
+
+    /// Blinks and mouth shapes from the worker's face metrics (web/worker.ts), which,
+    /// unlike animovi's image-space distances, hold at any distance to the camera and
+    /// tell one eye from the other and a rounded mouth from an open one.
+    ///
+    /// The ranges come from one user holding each state (z-ai/phase3c.log): eyes read
+    /// about 0.35 open and 0.20 closed, since the landmarks never meet. The mouth reads
+    /// 0.56 wide at rest and 0.32 to 0.42 rounded.
+    /// LIMITATION: fixed ranges for every face; adaptive calibration if they prove personal.
+    private static func expressions(from metrics: [String: Float]) -> [String: Float] {
+        func scale(_ name: String, from low: Float, to high: Float) -> Float {
+            min(max(((metrics[name] ?? 0) - low) / (high - low), 0), 1)
+        }
+        var blinkLeft = 1 - scale("eyeLeft", from: 0.21, to: 0.30)
+        var blinkRight = 1 - scale("eyeRight", from: 0.21, to: 0.30)
+        // The face model pulls the open eye half shut along with a winking one (0.26
+        // against 0.20), so a clear gap between the eyes is read as a wink outright.
+        let gap = (metrics["eyeLeft"] ?? 0) - (metrics["eyeRight"] ?? 0)
+        if gap > 0.05 {
+            (blinkLeft, blinkRight) = (0, 1)
+        } else if gap < -0.05 {
+            (blinkLeft, blinkRight) = (1, 0)
+        }
+
+        let open = scale("mouthOpen", from: 0.05, to: 0.40)
+        let round = 1 - scale("mouthWidth", from: 0.40, to: 0.52)
+        return [
+            "blinkLeft": blinkLeft,
+            "blinkRight": blinkRight,
+            "aa": open * (1 - round),
+            "oh": open * round,
+            "ou": (1 - open) * round,
+        ]
     }
 
     // MARK: Body
