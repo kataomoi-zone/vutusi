@@ -12,6 +12,12 @@ settings:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
+  configs:
+    # Release builds sign with the Developer ID certificate and hand-made profiles
+    # (README: Release), so they need no Xcode account or API key and build on CI.
+    Release:
+      CODE_SIGN_STYLE: Manual
+      CODE_SIGN_IDENTITY: Developer ID Application
 packages:
   VRMKit:
     url: https://github.com/tattn/VRMKit
@@ -32,6 +38,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.kawarimidoll.vutusi
         INFOPLIST_FILE: Resources/App/Info.plist
         CODE_SIGN_ENTITLEMENTS: Resources/App/vutusi.entitlements
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: vutusi Developer ID
     dependencies:
       - target: VutusiCameraExtension
       - package: VRMKit
@@ -51,3 +60,6 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Resources/CameraExtension/CameraExtension.entitlements
         ENABLE_APP_SANDBOX: YES
         REGISTER_APP_GROUPS: YES
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: vutusi Camera Extension Developer ID

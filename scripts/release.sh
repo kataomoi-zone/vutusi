@@ -2,15 +2,15 @@
 # Build a Developer ID-signed vutusi.app into build/release/, ready for
 # scripts/notarize.sh.
 #
-# The archive is signed automatically like dev builds, then exported with the
-# Developer ID certificate in the keychain and two Developer ID provisioning
-# profiles placed by hand (README: Release). Automatic export cannot be used:
-# it signs with a cloud-managed Developer ID certificate, which only the Account
-# Holder may use, not an API key. CFBundleVersion is the current time, so an
-# installed copy's Camera Extension is replaced by this one.
+# The Release configuration signs manually with the Developer ID certificate in the
+# keychain and two Developer ID provisioning profiles placed by hand (README:
+# Release), so neither step needs an Xcode account or an API key, locally or on CI.
+# Automatic signing cannot be used: it signs with a cloud-managed Developer ID
+# certificate, which only the Account Holder may use, not an API key.
 #
-# Required environment (see .envrc.sample; .envrc is sourced when present):
-#   VUTUSI_ASC_KEY_PATH, VUTUSI_ASC_KEY_ID, VUTUSI_ASC_ISSUER
+# CFBundleVersion is the current time, so an installed copy's Camera Extension is
+# replaced by this one. CFBundleShortVersionString is $VERSION when set (CI passes
+# the release tag), else project.yml's MARKETING_VERSION.
 
 set -euo pipefail
 
@@ -19,18 +19,13 @@ cd "$REPO_ROOT"
 # shellcheck source=scripts/lib.sh
 source scripts/lib.sh
 
-require_asc_key
 scripts/build-web.sh
 xcodegen_generate
 
 out=build/release
 mkdir -p "$out"
-auth=(
-  -allowProvisioningUpdates
-  -authenticationKeyPath "$VUTUSI_ASC_KEY_PATH"
-  -authenticationKeyID "$VUTUSI_ASC_KEY_ID"
-  -authenticationKeyIssuerID "$VUTUSI_ASC_ISSUER"
-)
+version_settings=(CURRENT_PROJECT_VERSION="$(date +%s)")
+[[ -n "${VERSION:-}" ]] && version_settings+=(MARKETING_VERSION="$VERSION")
 
 run() {
   local log=$1
@@ -46,8 +41,7 @@ echo "release.sh: archiving (log: $out/archive.log)"
 run "$out/archive.log" xcodebuild archive \
   -project vutusi.xcodeproj -scheme vutusi -configuration Release \
   -archivePath "$out/vutusi.xcarchive" \
-  "${auth[@]}" \
-  CURRENT_PROJECT_VERSION="$(date +%s)"
+  "${version_settings[@]}"
 
 cat > "$out/ExportOptions.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -77,8 +71,7 @@ echo "release.sh: exporting with Developer ID (log: $out/export.log)"
 run "$out/export.log" xcodebuild -exportArchive \
   -archivePath "$out/vutusi.xcarchive" \
   -exportOptionsPlist "$out/ExportOptions.plist" \
-  -exportPath "$out" \
-  "${auth[@]}"
+  -exportPath "$out"
 
 codesign --verify --deep --strict "$out/vutusi.app"
 codesign -dvv "$out/vutusi.app" 2>&1 | grep -E "^Authority=Developer ID Application|^TeamIdentifier"
