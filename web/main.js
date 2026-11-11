@@ -54,7 +54,7 @@ let preferredCamera = ''
 async function physicalCameraId() {
   const find = async () => {
     const cameras = (await navigator.mediaDevices.enumerateDevices()).filter(
-      (d) => d.kind === 'videoinput' && d.label && !d.label.startsWith('vutusi'),
+      (d) => d.kind === 'videoinput' && d.label && !d.label.startsWith('vutusi Camera'),
     )
     return cameras.find((d) => d.label === preferredCamera) ?? cameras[0]
   }
