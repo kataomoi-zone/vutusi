@@ -63,7 +63,6 @@ One-time setup, because Release builds sign manually (an API key cannot use clou
    cp ~/Downloads/vutusi_*.provisionprofile ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/
    ```
 
-
    | App ID | Profile name |
    |---|---|
    | `com.kawarimidoll.vutusi` | `vutusi Developer ID` |

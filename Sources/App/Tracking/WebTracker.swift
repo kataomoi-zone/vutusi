@@ -58,7 +58,6 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
         webView.evaluateJavaScript(running ? "vutusi.start()" : "vutusi.stop()")
     }
 
-
     private func sendCameraName() {
         webView.callAsyncJavaScript(
             "await vutusi.setCamera(name)", arguments: ["name": cameraName], in: nil, in: .page)
