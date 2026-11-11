@@ -67,11 +67,16 @@ ditto build/DerivedData/Build/Products/Debug/vutusi.app "$app"
 open "$app"
 
 extension_id=com.kawarimidoll.vutusi.CameraExtension
+# Compared as a string: `grep -q` at the end of the pipe stops reading early, and under
+# pipefail the SIGPIPE it leaves the earlier commands with reads as "not active".
+extension_active() {
+  [[ "$(systemextensionsctl list | grep -F "$extension_id (" | grep -F "/$version)")" == *"[activated enabled]"* ]]
+}
 for _ in $(seq 1 30); do
-  systemextensionsctl list | grep -F "$extension_id (" | grep -F "/$version)" | grep -qF "[activated enabled]" && break
+  extension_active && break
   sleep 1
 done
-if systemextensionsctl list | grep -F "/$version)" | grep -qF "[activated enabled]"; then
+if extension_active; then
   quit_app
   open "$app"
 else
