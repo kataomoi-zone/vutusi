@@ -153,8 +153,14 @@ final class AvatarRenderer {
 
     /// An image background, scaled to fill the frame and cropped.
     func setBackgroundImage(_ url: URL) throws {
+        // Made as a full-size "thumbnail", the one way ImageIO applies the photo's EXIF
+        // orientation; the plain image comes out sideways for a phone photo.
+        let upright: NSDictionary = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+        ]
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, upright) else {
             throw CocoaError(.fileReadCorruptFile)
         }
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
