@@ -54,6 +54,9 @@ private struct MenuContent: View {
             Label("Camera access is off; the avatar does not move", systemImage: "exclamationmark.triangle")
             Button("Allow Camera Access…") { avatar.openCameraPrivacySettings() }
             Divider()
+        } else if let error = avatar.trackingError {
+            Label("Tracking: \(error)", systemImage: "exclamationmark.triangle")
+            Divider()
         }
         Text("Camera: \(runtime.isSourceRunning ? "in use" : "idle")")
         Text("Model: \(avatar.status)")

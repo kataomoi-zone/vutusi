@@ -21,6 +21,10 @@ final class AvatarController {
     private(set) var cameraAccess = AVCaptureDevice.authorizationStatus(for: .video)
     var cameraAccessDenied: Bool { cameraAccess == .denied || cameraAccess == .restricted }
 
+    /// Why the avatar is not following the camera, from the tracking page; nil once a
+    /// result arrives. Camera permission is reported by `cameraAccessDenied` instead.
+    private(set) var trackingError: String?
+
     /// The models in the library.
     private(set) var models: [String] = []
 
@@ -180,11 +184,16 @@ final class AvatarController {
             status = "renderer failed: \(error.localizedDescription)"
             return
         }
-        tracker = WebTracker { [renderer] result, faceMetrics, jsLatencyMs in
+        tracker = WebTracker { [renderer, weak self] result, faceMetrics, jsLatencyMs in
             renderer?.apply(result, faceMetrics: faceMetrics, jsLatencyMs: jsLatencyMs)
+            // Checked first: assigning on every result would redraw the menu 25 times a second.
+            if self?.trackingError != nil { self?.trackingError = nil }
         }
         tracker?.cameraName = cameraName
-        tracker?.onCameraError = { [weak self] _ in self?.refreshCameraAccess() }
+        tracker?.onError = { [weak self] message in
+            self?.trackingError = message.split(separator: "\n").first.map(String.init) ?? message
+            self?.refreshCameraAccess()
+        }
         refreshCameraAccess()
         renderer?.smoothing = smoothing
         renderer?.trackedParts = trackedParts

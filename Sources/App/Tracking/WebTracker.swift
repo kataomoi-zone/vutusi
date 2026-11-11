@@ -16,8 +16,9 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
     private let window: NSWindow
     private var loaded = false
     private var wantsRunning = false
-    /// Called when the page fails to open the camera, with the page's message.
-    var onCameraError: ((String) -> Void)?
+    /// Called with the page's message when tracking fails: the camera does not open or
+    /// goes away, or the worker fails to start or to read a frame.
+    var onError: ((String) -> Void)?
     /// The camera to track, by name; empty picks the first camera other than vutusi Camera.
     var cameraName = "" {
         didSet { if loaded { sendCameraName() } }
@@ -77,11 +78,9 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
             loaded = true
             sendCameraName()
             setRunning(wantsRunning)
-        case "error" where message.message?.hasPrefix("camera:") == true:
-            logger.error("page: \(message.message ?? body, privacy: .public)")
-            onCameraError?(message.message ?? "")
         case "error":
             logger.error("page: \(message.message ?? body, privacy: .public)")
+            onError?(message.message ?? "unknown error")
         default:
             logger.info("page: \(body, privacy: .public)")
         }

@@ -50,6 +50,12 @@ struct SettingsView: View {
                         .foregroundStyle(.orange)
                     Button("Open Privacy Settings…") { avatar.openCameraPrivacySettings() }
                 }
+            } else if let error = avatar.trackingError {
+                Section {
+                    Label("Tracking is not working, so the avatar does not move: \(error)",
+                        systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
             }
             Section("Model") {
                 Picker("Model", selection: $avatar.modelName) {
