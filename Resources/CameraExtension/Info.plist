@@ -28,6 +28,6 @@
 		<string>$(TeamIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	</dict>
 	<key>NSSystemExtensionUsageDescription</key>
-	<string>vutusi のアバター映像を、会議アプリからカメラとして選べるようにします。</string>
+	<string>Lets video apps choose the vutusi avatar as a camera.</string>
 </dict>
 </plist>
