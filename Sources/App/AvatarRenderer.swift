@@ -33,6 +33,8 @@ struct Light: Equatable {
 /// Camera Extension streams, at a fixed rate while running.
 @MainActor
 final class AvatarRenderer {
+    private static let fieldOfViewDegrees: Float = 30
+
     private let device: MTLDevice
     private let renderer: RealityRenderer
     private let camera = Entity()
@@ -88,7 +90,8 @@ final class AvatarRenderer {
         // Colors as they are: MToon is drawn for the camera image, not a photographic scene.
         renderer.cameraSettings.isToneMappingEnabled = false
 
-        var cameraComponent = PerspectiveCameraComponent(near: 0.01, far: 100, fieldOfViewInDegrees: 30)
+        var cameraComponent = PerspectiveCameraComponent(
+            near: 0.01, far: 100, fieldOfViewInDegrees: Self.fieldOfViewDegrees)
         cameraComponent.fieldOfViewOrientation = .vertical
         camera.components.set(cameraComponent)
         renderer.entities.append(camera)
@@ -214,7 +217,7 @@ final class AvatarRenderer {
         // 5% margin above the top, then the user's offset.
         let target = SIMD3<Float>(
             head.x, top - visibleHeight * 0.45 - framing.offset * visibleHeight, head.z)
-        let distance = visibleHeight / 2 / tan(15 * .pi / 180)
+        let distance = visibleHeight / 2 / tan(Self.fieldOfViewDegrees / 2 * .pi / 180)
         camera.look(at: target, from: target + model.frontDirection * distance, relativeTo: nil)
     }
 
