@@ -36,9 +36,11 @@ final class ExtensionInstaller: NSObject {
         }
     }
 
-    init(activateOnLaunch: Bool) {
+    /// Activates right away, which installs the extension on first launch and replaces an
+    /// installed one of another version (each `scripts/dev.sh` run, each update).
+    override init() {
         super.init()
-        if activateOnLaunch { activate() }
+        activate()
     }
 
     func activate() {

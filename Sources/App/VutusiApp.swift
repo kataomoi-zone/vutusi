@@ -2,8 +2,7 @@ import SwiftUI
 
 @main
 struct VutusiApp: App {
-    // Activates on launch so that each `scripts/dev.sh` run replaces the installed extension.
-    @State private var installer = ExtensionInstaller(activateOnLaunch: true)
+    @State private var installer = ExtensionInstaller()
     @State private var runtime: RuntimeState
     @State private var avatar: AvatarController
 
