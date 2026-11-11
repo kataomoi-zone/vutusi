@@ -42,7 +42,7 @@ function tick() {
       () => { busy = false },
     )
   }
-  // setTimeout rather than requestAnimationFrame: rAF ran at 22fps here in spikes/webtracking, this at 25.
+  // setTimeout rather than requestAnimationFrame: rAF ran at 22fps in this web view, this at 25.
   timer = setTimeout(tick, 5)
 }
 
