@@ -1,5 +1,5 @@
 # Build, sign, notarize, and publish a vutusi release. Manual trigger only: a
-# dispatch cuts a date-based CalVer tag (YYYY.MMDD.N, as e05 does), builds from
+# dispatch cuts a date-based CalVer tag (YYYY.MMDD.N), builds from
 # source in this public run, attests the zip's provenance, and publishes it as the
 # release asset.
 #

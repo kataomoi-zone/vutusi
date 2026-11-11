@@ -111,7 +111,7 @@ final class TrackingApplier {
     /// unlike animovi's image-space distances, hold at any distance to the camera and
     /// tell one eye from the other and a rounded mouth from an open one.
     ///
-    /// The ranges come from one user holding each state (z-ai/phase3c.log): eyes read
+    /// The ranges come from one user holding each state: eyes read
     /// about 0.35 open and 0.20 closed, since the landmarks never meet. The mouth reads
     /// 0.56 wide at rest and 0.32 to 0.42 rounded.
     /// LIMITATION: fixed ranges for every face; adaptive calibration if they prove personal.

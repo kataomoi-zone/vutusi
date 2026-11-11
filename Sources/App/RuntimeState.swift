@@ -1,6 +1,6 @@
 import Observation
 
-/// The one place that decides whether tracking and rendering run (plan §3).
+/// The one place that decides whether tracking and rendering run.
 @MainActor
 @Observable
 final class RuntimeState {

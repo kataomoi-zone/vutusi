@@ -1,4 +1,4 @@
-// Known-pose check (plan §5-4): feed fixed solver outputs through the app's
+// Known-pose check: feed fixed solver outputs through the app's
 // TrackingApplier and render each, so the bone mapping can be checked by eye on
 // VRM 0.x and 1.0 models.
 //

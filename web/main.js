@@ -2,7 +2,7 @@
 // frame at a time to the worker, and hands each result to Swift as a JSON string.
 // Swift calls vutusi.start() / vutusi.stop() as the camera becomes needed or not.
 
-const TARGET_INTERVAL_MS = 1000 / 25 // plan: tracking at 25fps, rendering at 30fps
+const TARGET_INTERVAL_MS = 1000 / 25 // tracking at 25fps, under the 30fps rendering
 
 const post = (msg) => window.webkit.messageHandlers.tracking.postMessage(JSON.stringify(msg))
 window.addEventListener('error', (e) => post({ type: 'error', message: `${e.message} @ ${e.filename}:${e.lineno}` }))
@@ -42,7 +42,7 @@ function tick() {
       () => { busy = false },
     )
   }
-  // setTimeout rather than requestAnimationFrame: rAF ran at 22fps here in Spike B, this at 25.
+  // setTimeout rather than requestAnimationFrame: rAF ran at 22fps here in spikes/webtracking, this at 25.
   timer = setTimeout(tick, 5)
 }
 

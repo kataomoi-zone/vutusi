@@ -261,7 +261,7 @@ final class AvatarRenderer {
     }
 }
 
-/// Tracking rate, detection rates and latency, logged every few seconds (plan Phase 3).
+/// Tracking rate, detection rates and latency, logged every few seconds.
 /// Latency is measured in two parts on their own clocks and added up: the page's
 /// (camera frame to result) and the app's (result received to the frame showing it
 /// handed to the sink). Results replaced before a frame showed them are not counted.

@@ -8,7 +8,7 @@ private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "Web
 /// result to `onResult`.
 ///
 /// The page must count as visible: in a web view without a window, or in a window off
-/// screen, WebKit never resolves getUserMedia and throttles timers (Spike B). So the web
+/// screen, WebKit never resolves getUserMedia and throttles timers (spikes/webtracking). So the web
 /// view sits in a window that is on screen but fully transparent and click-through.
 @MainActor
 final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNavigationDelegate {
