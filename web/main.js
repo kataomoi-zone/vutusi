@@ -87,6 +87,14 @@ window.vutusi = {
         return
       }
       video.srcObject = stream
+      // An unplugged camera ends its track; start again, which falls back to another one.
+      // stop() below does not fire this event.
+      stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+        if (mine !== generation) return
+        window.vutusi.stop()
+        post({ type: 'error', message: 'camera: disconnected' })
+        window.vutusi.start()
+      })
       post({ type: 'camera', label: stream.getVideoTracks()[0]?.label })
       await video.play()
       if (mine !== generation) return
@@ -94,7 +102,8 @@ window.vutusi = {
       tick()
     } catch (e) {
       if (mine !== generation) return
-      running = false
+      // Releases a camera that opened before the failure.
+      window.vutusi.stop()
       post({ type: 'error', message: `camera: ${e}` })
     }
   },
