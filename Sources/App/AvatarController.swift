@@ -89,8 +89,10 @@ final class AvatarController {
     }
 
     /// sRGB components of the solid background.
-    var backgroundColor = UserDefaults.standard.array(forKey: "backgroundColor") as? [Float]
-        ?? AvatarController.defaultBackgroundColor {
+    var backgroundColor: [Float] = {
+        if let v = UserDefaults.standard.array(forKey: "backgroundColor") as? [Float], v.count == 3 { return v }
+        return AvatarController.defaultBackgroundColor
+    }() {
         didSet {
             UserDefaults.standard.set(backgroundColor, forKey: "backgroundColor")
             applyBackground()
