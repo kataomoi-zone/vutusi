@@ -46,8 +46,15 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
         window.ignoresMouseEvents = true
         window.level = .statusBar
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
-        window.setFrameOrigin(NSScreen.main?.visibleFrame.origin ?? .zero)
+        placeWindow()
         window.orderFrontRegardless()
+        // A display that is unplugged or rearranged can leave the window off every screen,
+        // where the page no longer counts as visible.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.placeWindow() }
+        }
 
         webView.load(URLRequest(url: URL(string: "vutusi://app/index.html")!))
     }
@@ -57,6 +64,10 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
         wantsRunning = running
         guard loaded else { return }
         webView.evaluateJavaScript(running ? "vutusi.start()" : "vutusi.stop()")
+    }
+
+    private func placeWindow() {
+        window.setFrameOrigin(NSScreen.main?.visibleFrame.origin ?? .zero)
     }
 
     private func sendCameraName() {
