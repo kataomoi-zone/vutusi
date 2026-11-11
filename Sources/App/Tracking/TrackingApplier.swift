@@ -5,6 +5,12 @@ import Foundation
 import VRMRealityKit
 import simd
 
+/// What the user can turn off. `body` is the torso; `hands` carries the arms with the
+/// hands, as raising a hand moves the whole arm.
+enum TrackingPart: String, CaseIterable {
+    case face, body, hands
+}
+
 /// Poses a VRM from the tracking worker's solver output, smoothing every value.
 ///
 /// The solvers speak in rotations of three-vrm's normalized bones: identity at rest,
@@ -12,12 +18,6 @@ import simd
 /// rotation `n` is first turned into the file's frame (VRM 1.0 faces the other way),
 /// then re-expressed against the node's rest as `parentRest⁻¹ · n · rest`, as three-vrm
 /// and VRMKit's own VRMA retargeting do.
-/// What the user can turn off. `body` is the torso; `hands` carries the arms with the
-/// hands, as raising a hand moves the whole arm.
-enum TrackingPart: String, CaseIterable {
-    case face, body, hands
-}
-
 @MainActor
 final class TrackingApplier {
     /// 0 (none) to 1. Filter responsiveness is 1 - smoothing, at least 0.1.
