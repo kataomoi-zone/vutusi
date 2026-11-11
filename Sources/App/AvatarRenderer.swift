@@ -33,10 +33,10 @@ struct Light: Equatable {
 /// Camera Extension streams, at a fixed rate while running.
 @MainActor
 final class AvatarRenderer {
-    private let device = MTLCreateSystemDefaultDevice()!
+    private let device: MTLDevice
     private let renderer: RealityRenderer
     private let camera = Entity()
-    private var pool: CVPixelBufferPool!
+    private let pool: CVPixelBufferPool
     private var model: VRMEntity?
     private var applier: TrackingApplier?
     /// 0 (none) to 1; see TrackingApplier.smoothing.
@@ -68,8 +68,22 @@ final class AvatarRenderer {
     private let height = Int(CameraIdentifiers.height)
 
     init(onFrame: @escaping @Sendable (CVPixelBuffer) -> Void) throws {
+        let attributes: NSDictionary = [
+            kCVPixelBufferWidthKey: Int(CameraIdentifiers.width),
+            kCVPixelBufferHeightKey: Int(CameraIdentifiers.height),
+            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferIOSurfacePropertiesKey: [:] as NSDictionary,
+            kCVPixelBufferMetalCompatibilityKey: true,
+        ]
+        var pool: CVPixelBufferPool?
+        CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, attributes, &pool)
+        guard let device = MTLCreateSystemDefaultDevice(), let commandQueue = device.makeCommandQueue(), let pool else {
+            throw CocoaError(.featureUnsupported)
+        }
         self.onFrame = onFrame
-        commandQueue = device.makeCommandQueue()!
+        self.device = device
+        self.commandQueue = commandQueue
+        self.pool = pool
         renderer = try RealityRenderer()
         // Colors as they are: MToon is drawn for the camera image, not a photographic scene.
         renderer.cameraSettings.isToneMappingEnabled = false
@@ -79,15 +93,6 @@ final class AvatarRenderer {
         camera.components.set(cameraComponent)
         renderer.entities.append(camera)
         renderer.activeCamera = camera
-
-        let attributes: NSDictionary = [
-            kCVPixelBufferWidthKey: width,
-            kCVPixelBufferHeightKey: height,
-            kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
-            kCVPixelBufferIOSurfacePropertiesKey: [:] as NSDictionary,
-            kCVPixelBufferMetalCompatibilityKey: true,
-        ]
-        CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, attributes, &pool)
     }
 
     /// Bumped by every load and unload, so a load that finishes after a later one began
@@ -177,7 +182,7 @@ final class AvatarRenderer {
 
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
-        let texture = device.makeTexture(descriptor: descriptor)!
+        guard let texture = device.makeTexture(descriptor: descriptor) else { throw CocoaError(.featureUnsupported) }
         texture.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: bytes, bytesPerRow: width * 4)
         backgroundTexture = texture
         // Draw over what the target already holds: the image, copied in each frame.
