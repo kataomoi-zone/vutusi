@@ -32,7 +32,9 @@ permissions: {}
 jobs:
   release:
     name: Build and publish release
-    runs-on: macos-26
+    # VRMKit does not compile with Xcode 26 (the macos-26 image's newest); this
+    # preview image has Xcode 27, pinned below to the local development version.
+    runs-on: xcode-27
     timeout-minutes: 60
     permissions:
       contents: write # tag + release on this repo
@@ -55,6 +57,9 @@ jobs:
           VERSION="${DATE}.$(( ${LAST:-0} + 1 ))"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Release version: ${VERSION}"
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_27.2.app
 
       # The scripts fall back to nix for these, which the runner does not have.
       - name: Install build tools
