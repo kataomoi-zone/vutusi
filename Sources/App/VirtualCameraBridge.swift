@@ -23,6 +23,9 @@ final class VirtualCameraBridge: @unchecked Sendable {
 
     private var pollTimer: DispatchSourceTimer?
     private var isSending = false
+    /// What `setSending` last asked for; `poll` starts again after a failed start or a
+    /// replaced extension.
+    private var wantsSending = false
     private var deviceID: CMIOObjectID?
     private var sinkStreamID: CMIOStreamID?
     private var sinkQueue: CMSimpleQueue?
@@ -42,7 +45,10 @@ final class VirtualCameraBridge: @unchecked Sendable {
 
     /// Starts or stops the sink stream that `send(_:)` feeds.
     func setSending(_ sending: Bool) {
-        queue.async { [self] in sending ? startSending() : stopSending() }
+        queue.async { [self] in
+            wantsSending = sending
+            sending ? startSending() : stopSending()
+        }
     }
 
     /// Enqueues one frame; dropped unless sending.
@@ -68,6 +74,7 @@ final class VirtualCameraBridge: @unchecked Sendable {
             }
             return
         }
+        if wantsSending, !isSending { startSending() }
         let running = !isSending
             ? runningSomewhere != 0
             : stalledFrames < Int(CameraIdentifiers.frameRate) / 2 && ContinuousClock.now - lastFrameAt < .seconds(1)
