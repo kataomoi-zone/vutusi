@@ -29,9 +29,6 @@ final class TrackingApplier {
     private let facesNegativeZ: Bool
     private var rest: [HumanoidBone: (node: Int, world: simd_quatf, parentWorld: simd_quatf)] = [:]
     private var filters: [String: Float] = [:]
-    private var faceActive = false
-    private var poseActive = false
-    private var activeHands: Set<Side> = []
 
     // Eye and mouth values ignore the smoothing setting, so they stay responsive.
     private static let fastKeys: Set<String> = ["gazeX", "gazeY", "blinkLeft", "blinkRight", "aa", "oh", "ou", "happy"]
@@ -67,37 +64,21 @@ final class TrackingApplier {
             (result.leftHand, result.rightHand) = (.rest, .rest)
         }
 
-        if let face = result.face {
-            faceActive = true
-            applyFace(face, metrics: faceMetrics)
-        } else if faceActive {
-            faceActive = false
-            resetFilters(prefixes: ["head", "gaze"])
-        }
-
-        if let pose = result.pose {
-            poseActive = true
-            applyPose(pose)
-        } else {
-            if poseActive {
-                poseActive = false
-                resetFilters(prefixes: ["spine"])
-            }
-            // The arm filters stay, so a dropped frame eases the arms down instead of snapping.
-            applyDefaultArms(left: true, right: true)
-        }
-
+        // A part that is not detected follows its rest values through the same filters, so
+        // it eases back to neutral instead of freezing in its last pose, and a dropped
+        // frame does not snap.
+        applyFace(result.face ?? .rest, metrics: result.face == nil ? [:] : faceMetrics)
+        applyPose(result.pose ?? .rest)
         for (side, hand, arm) in [
             (Side.left, result.leftHand, result.pose?.leftArm),
             (Side.right, result.rightHand, result.pose?.rightArm),
         ] {
-            if let hand {
-                activeHands.insert(side)
-                applyFingers(side, hand)
-                if let frame = hand.wristFrame, let arm { applyWrist(side, frame, arm) }
-            } else if activeHands.contains(side) {
-                activeHands.remove(side)
-                resetFilters(prefixes: ["\(side.rawValue)Hand", "\(side.rawValue)Finger"])
+            let hand = hand ?? .rest
+            applyFingers(side, hand)
+            if let frame = hand.wristFrame, let arm {
+                applyWrist(side, frame, arm)
+            } else {
+                setBone(side == .left ? .leftHand : .rightHand, smooth("\(side.rawValue)Hand", Euler(x: 0, y: 0, z: 0)))
             }
         }
     }
@@ -115,6 +96,9 @@ final class TrackingApplier {
             weights["blinkLeft"] = face.eyes.leftBlink
             weights["blinkRight"] = face.eyes.rightBlink
             weights["aa"] = face.mouth.open
+            // Only the metrics give these; without them they would keep their last weight.
+            weights["oh"] = 0
+            weights["ou"] = 0
         } else {
             weights.merge(Self.expressions(from: metrics)) { $1 }
         }
@@ -271,10 +255,6 @@ final class TrackingApplier {
 
     private func smooth(_ key: String, _ angles: Euler) -> Euler {
         Euler(x: smooth("\(key)_x", angles.x), y: smooth("\(key)_y", angles.y), z: smooth("\(key)_z", angles.z))
-    }
-
-    private func resetFilters(prefixes: [String]) {
-        filters = filters.filter { key, _ in !prefixes.contains { key.hasPrefix($0) } }
     }
 }
 
