@@ -5,7 +5,7 @@
 # animovi's (src/lib/mediapipe/constants.ts) so tracking behaves the same.
 #
 # Sources stay in web-src/ so that only what the page loads ships in the app; the
-# animovi license ships as web/LICENSE-animovi.txt, since worker.js contains its code.
+# licenses of what the app redistributes ship as web/LICENSE-*.txt.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
