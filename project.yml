@@ -10,7 +10,8 @@ settings:
     CODE_SIGN_STYLE: Automatic
     ENABLE_HARDENED_RUNTIME: YES
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.0"
+    # A local build's version; releases pass the tag (scripts/release.sh).
+    MARKETING_VERSION: "0.0.0"
     CURRENT_PROJECT_VERSION: "1"
   configs:
     # Release builds sign with the Developer ID certificate and hand-made profiles
