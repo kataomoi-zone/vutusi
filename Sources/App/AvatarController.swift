@@ -1,6 +1,9 @@
 import AVFoundation
 import AppKit
 import UniformTypeIdentifiers
+import os
+
+private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "AvatarController")
 
 /// Owns the renderer, the tracker that drives it, the model library and the settings,
 /// which are kept in UserDefaults.
@@ -254,7 +257,8 @@ final class AvatarController {
                 try await renderer.load(library.url(for: name))
                 if name == modelName { status = name }
             } catch {
-                status = "\(name) failed: \(error.localizedDescription)"
+                logger.error("loading \(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+                if name == modelName { status = "\(name) failed: \(error.localizedDescription)" }
             }
         }
     }
