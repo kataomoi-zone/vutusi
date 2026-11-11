@@ -17,8 +17,9 @@ Settings… in the menu bar opens a live preview with the tracking, framing, lig
 
 Requirements:
 
-- Xcode
+- Xcode 27 or later (VRMKit does not compile with Xcode 26)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (falls back to `nix shell nixpkgs#xcodegen` when not on `PATH`)
+- [esbuild](https://esbuild.github.io/) (same fallback, `nixpkgs#esbuild`)
 - An App Store Connect API key with the Admin role, set in `.envrc` (copy `.envrc.sample`)
 
 ```sh
