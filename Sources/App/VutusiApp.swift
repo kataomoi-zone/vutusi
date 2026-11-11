@@ -28,7 +28,7 @@ struct VutusiApp: App {
             MenuContent(runtime: runtime, avatar: avatar, installer: installer)
         }
         Settings {
-            SettingsView(avatar: avatar, runtime: runtime)
+            SettingsView(avatar: avatar, runtime: runtime, installer: installer)
         }
     }
 }
@@ -40,28 +40,37 @@ private struct MenuContent: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
+        // Problems come first and only while they last; the rest of the time the menu is
+        // the status and what is switched often. Everything else is in Settings.
+        if installer.needsAttention {
+            Label("Camera Extension: \(installer.state.label)", systemImage: "exclamationmark.triangle")
+            Button("Install Camera Extension") { installer.activate() }
+            Divider()
+        } else if installer.state != .installed {
+            Text("Camera Extension: \(installer.state.label)")
+            Divider()
+        }
+        if avatar.cameraAccessDenied {
+            Label("Camera access is off; the avatar does not move", systemImage: "exclamationmark.triangle")
+            Button("Allow Camera Access…") { avatar.openCameraPrivacySettings() }
+            Divider()
+        }
         Text("Camera: \(runtime.isSourceRunning ? "in use" : "idle")")
         Text("Model: \(avatar.status)")
-        Text("Camera Extension: \(installer.status)")
-        if avatar.cameraAccessDenied {
-            Divider()
-            Text("Camera access is off; the avatar does not move")
-            Button("Allow Camera Access…") { avatar.openCameraPrivacySettings() }
-        }
         Divider()
-        Picker("Model", selection: $avatar.modelName) {
-            ForEach(avatar.models, id: \.self) { Text($0).tag($0) }
+        if avatar.models.isEmpty {
+            Button("Add Model…") { avatar.addModel() }
+        } else {
+            Picker("Model", selection: $avatar.modelName) {
+                ForEach(avatar.models, id: \.self) { Text($0).tag($0) }
+            }
         }
-        Button("Add Model…") { avatar.addModel() }
         Button("Settings…") {
             // A menu bar app is not active, so its settings window would open behind others.
             NSApp.activate()
             openSettings()
         }
         .keyboardShortcut(",")
-        Divider()
-        Button("Install Camera Extension") { installer.activate() }
-        Button("Uninstall Camera Extension") { installer.deactivate() }
         Divider()
         Button("Quit vutusi") { NSApplication.shared.terminate(nil) }
             .keyboardShortcut("q")

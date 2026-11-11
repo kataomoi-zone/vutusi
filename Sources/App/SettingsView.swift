@@ -5,6 +5,7 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var avatar: AvatarController
     let runtime: RuntimeState
+    let installer: ExtensionInstaller
     @State private var cameras: [String] = []
     /// Mirrors only the preview, like a video app's self view; video apps get the frame as is.
     @AppStorage("mirrorPreview") private var mirrorPreview = false
@@ -141,6 +142,20 @@ struct SettingsView: View {
                         Button("Choose…") { avatar.chooseBackgroundImage() }
                         if !avatar.backgroundImagePath.isEmpty {
                             Button("Remove") { avatar.removeBackgroundImage() }
+                        }
+                    }
+                }
+            }
+            Section("Camera Extension") {
+                LabeledContent("Status") {
+                    HStack {
+                        Text(installer.state.label)
+                            .foregroundStyle(.secondary)
+                        if installer.state == .installed {
+                            Button("Uninstall") { installer.deactivate() }
+                        } else {
+                            Button("Install") { installer.activate() }
+                                .disabled(!installer.needsAttention)
                         }
                     }
                 }
