@@ -200,14 +200,6 @@ final class AvatarController {
         renderer?.framing = framing
         renderer?.light = light
         applyBackground()
-
-        // Earlier builds remembered a path outside the library; bring that model in once.
-        if let path = UserDefaults.standard.string(forKey: "modelPath") {
-            UserDefaults.standard.removeObject(forKey: "modelPath")
-            if modelName.isEmpty, let name = try? library.add(URL(fileURLWithPath: path)) {
-                modelName = name
-            }
-        }
         models = library.names()
         loadModel()
     }
