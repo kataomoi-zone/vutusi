@@ -127,7 +127,7 @@ struct SettingsView: View {
                         Text("High")
                     }
                 }
-                ColorPicker("Color", selection: lightColor, supportsOpacity: false)
+                ColorPicker("Color", selection: color($avatar.light.color), supportsOpacity: false)
                 LabeledContent("Intensity") {
                     Slider(value: $avatar.light.intensity, in: 0.2...2)
                 }
@@ -136,7 +136,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Section("Background") {
-                ColorPicker("Color", selection: backgroundColor, supportsOpacity: false)
+                ColorPicker("Color", selection: color($avatar.backgroundColor), supportsOpacity: false)
                     .disabled(!avatar.backgroundImagePath.isEmpty)
                 LabeledContent("Image") {
                     HStack {
@@ -199,23 +199,14 @@ struct SettingsView: View {
         }
     }
 
-    private var lightColor: Binding<Color> {
+    /// A color picker's binding onto sRGB components.
+    private func color(_ components: Binding<[Float]>) -> Binding<Color> {
         Binding {
-            let c = avatar.light.color
+            let c = components.wrappedValue
             return Color(.sRGB, red: Double(c[0]), green: Double(c[1]), blue: Double(c[2]))
         } set: { color in
             guard let srgb = NSColor(color).usingColorSpace(.sRGB) else { return }
-            avatar.light.color = [Float(srgb.redComponent), Float(srgb.greenComponent), Float(srgb.blueComponent)]
-        }
-    }
-
-    private var backgroundColor: Binding<Color> {
-        Binding {
-            let c = avatar.backgroundColor
-            return Color(.sRGB, red: Double(c[0]), green: Double(c[1]), blue: Double(c[2]))
-        } set: { color in
-            guard let srgb = NSColor(color).usingColorSpace(.sRGB) else { return }
-            avatar.backgroundColor = [Float(srgb.redComponent), Float(srgb.greenComponent), Float(srgb.blueComponent)]
+            components.wrappedValue = [Float(srgb.redComponent), Float(srgb.greenComponent), Float(srgb.blueComponent)]
         }
     }
 
