@@ -105,7 +105,8 @@ final class AvatarRenderer {
     func load(_ url: URL) async throws {
         loadGeneration += 1
         let generation = loadGeneration
-        let data = try bakeEmissiveStrength(Data(contentsOf: url))
+        // Off the main actor: reading and rewriting a large model would stall the frames.
+        let data = try await Task.detached { try bakeEmissiveStrength(Data(contentsOf: url)) }.value
         let model = try await VRMEntityLoader(
             withData: data, rootDirectory: url.deletingLastPathComponent(),
             outputColorSpace: .sRGB, compensatesToneMapping: false
