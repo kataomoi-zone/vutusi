@@ -1,5 +1,7 @@
 # vutusi
 
+<img src="Resources/Icon/icon-animated.svg" alt="vutusi icon" width="128">
+
 A macOS menu bar app that exposes a VRM avatar as a virtual camera (`vutusi Camera`) for Google Meet, Slack and other video apps.
 
 Requires macOS 15 or later. The face, body and hand tracking runs [animovi](https://github.com/motoki317/animovi)'s solvers on MediaPipe.
