@@ -285,10 +285,14 @@ private struct TrackingStats {
     private var results = 0
     private var face = 0, pose = 0, left = 0, right = 0
     private var totalsMs: [Double] = []
-    private var faceMetrics: [String: [Float]] = [:]
+    private var ranges: [String: [Float]] = [:]
 
     mutating func record(_ result: HolisticResult, faceMetrics metrics: [String: Float]) {
-        for (name, value) in metrics { faceMetrics[name, default: []].append(value) }
+        for (name, value) in metrics { ranges[name, default: []].append(value) }
+        if let spine = result.pose?.spine {
+            ranges["spineYaw", default: []].append(spine.yaw)
+            ranges["spineRoll", default: []].append(spine.roll)
+        }
         results += 1
         if result.face != nil { face += 1 }
         if result.pose != nil { pose += 1 }
@@ -309,9 +313,10 @@ private struct TrackingStats {
         let sorted = totalsMs.sorted()
         let median = sorted.isEmpty ? 0 : Int(sorted[sorted.count / 2])
         let p95 = sorted.isEmpty ? 0 : Int(sorted[sorted.count * 95 / 100])
-        // min / median / max of each face metric, to set TrackingApplier's ranges from.
-        let metrics = faceMetrics.keys.sorted().map { name in
-            let v = faceMetrics[name]!.sorted()
+        // min / median / max of each face metric, to set TrackingApplier's ranges from,
+        // and of the spine angles the solver hands the avatar, in radians.
+        let metrics = ranges.keys.sorted().map { name in
+            let v = ranges[name]!.sorted()
             return String(format: "%@ %.2f/%.2f/%.2f", name, v.first!, v[v.count / 2], v.last!)
         }.joined(separator: ", ")
         logger.info("""

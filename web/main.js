@@ -95,7 +95,10 @@ window.vutusi = {
         post({ type: 'error', message: 'camera: disconnected' })
         window.vutusi.start()
       })
-      post({ type: 'camera', label: stream.getVideoTracks()[0]?.label })
+      const track = stream.getVideoTracks()[0]
+      // What the camera delivers, which the constraints above only request.
+      const { width, height, frameRate } = track?.getSettings() ?? {}
+      post({ type: 'camera', label: track?.label, width, height, frameRate })
       await video.play()
       if (mine !== generation) return
       post({ type: 'camera', on: true })
