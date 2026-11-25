@@ -56,7 +56,9 @@ final class TrackingApplier {
             result.face = .rest
             faceMetrics = [:]
         }
-        if !trackedParts.contains(.body) { result.pose?.spine = PoseResult.rest.spine }
+        if !trackedParts.contains(.body) || result.pose.map({ Self.isMisread($0.spine) }) == true {
+            result.pose?.spine = PoseResult.rest.spine
+        }
         if !trackedParts.contains(.hands) {
             // No arms detected lowers them; open hands relax the fingers.
             result.pose?.leftArm = nil
@@ -142,6 +144,14 @@ final class TrackingApplier {
     }
 
     // MARK: Body
+
+    /// A seated user never tilts the shoulders past 0.5 rad or turns the torso as far as
+    /// the solver's yaw cap (π/4, a profile turn). When the face leaves the frame,
+    /// MediaPipe still reports shoulders at made-up positions that read as either; such a
+    /// frame eases the torso to rest instead of throwing it sideways.
+    private static func isMisread(_ spine: PitchYawRoll) -> Bool {
+        abs(spine.roll) > 0.5 || abs(spine.yaw) > 0.78
+    }
 
     private func applyPose(_ pose: PoseResult) {
         setBone(.spine, smooth("spine", pose.spine.euler))
