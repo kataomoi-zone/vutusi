@@ -13,6 +13,18 @@ Requires macOS 15 or later. The face, body and hand tracking runs [animovi](http
 
 Settings… in the menu bar opens a live preview with the tracking, framing, light and background settings.
 
+## Reporting problems
+
+Quit vutusi, start recording its logs in Terminal, then open vutusi and reproduce the problem:
+
+```sh
+/usr/bin/log stream --level info --style compact --predicate 'subsystem == "com.kawarimidoll.vutusi"' > vutusi.log
+```
+
+Stop with Ctrl-C and attach `vutusi.log` to the issue. It names the vutusi and macOS versions, the camera in use with its resolution and frame rate, and every 5 seconds the tracking rate, detection rates and latency.
+
+The full path avoids zsh's own `log` command, and recording from launch catches those lines, which `log show` would miss: macOS keeps info-level messages in memory only.
+
 ## Development
 
 Requirements:
