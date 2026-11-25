@@ -15,15 +15,15 @@ Settings… in the menu bar opens a live preview with the tracking, framing, lig
 
 ## Reporting problems
 
-Quit vutusi, start recording its logs in Terminal, then open vutusi and reproduce the problem:
+Right after the problem, choose Save Logs… at the bottom of Settings… and attach the saved log file to the issue. It names the vutusi and macOS versions, the camera in use with its resolution and frame rate, and every 5 seconds the tracking rate, detection rates and latency.
+
+macOS holds these messages in memory and drops the oldest after a few minutes, and the button cannot help once vutusi has crashed. In those cases, record from Terminal instead: quit vutusi, run the command below, open vutusi, reproduce the problem, and stop with Ctrl-C. This also records the Camera Extension.
 
 ```sh
 /usr/bin/log stream --level info --style compact --predicate 'subsystem == "com.kawarimidoll.vutusi"' > vutusi.log
 ```
 
-Stop with Ctrl-C and attach `vutusi.log` to the issue. It names the vutusi and macOS versions, the camera in use with its resolution and frame rate, and every 5 seconds the tracking rate, detection rates and latency.
-
-The full path avoids zsh's own `log` command, and recording from launch catches those lines, which `log show` would miss: macOS keeps info-level messages in memory only.
+The full path avoids zsh's own `log` command.
 
 ## Development
 
