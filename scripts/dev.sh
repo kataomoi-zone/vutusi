@@ -48,7 +48,7 @@ if ! xcodebuild \
   -authenticationKeyPath "$VUTUSI_ASC_KEY_PATH" \
   -authenticationKeyID "$VUTUSI_ASC_KEY_ID" \
   -authenticationKeyIssuerID "$VUTUSI_ASC_ISSUER" \
-  CURRENT_PROJECT_VERSION="$version" \
+  CURRENT_PROJECT_VERSION="$version" MARKETING_VERSION=dev \
   build > "$log_file" 2>&1; then
   grep -E "error:|BUILD FAILED" "$log_file" | sort -u >&2 || tail -30 "$log_file" >&2
   exit 1

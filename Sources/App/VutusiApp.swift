@@ -1,4 +1,9 @@
 import SwiftUI
+import os
+
+private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "App")
+
+let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
 
 @main
 struct VutusiApp: App {
@@ -7,6 +12,8 @@ struct VutusiApp: App {
     @State private var avatar: AvatarController
 
     init() {
+        // For problem reports, which attach these logs.
+        logger.info("vutusi \(appVersion, privacy: .public) on macOS \(ProcessInfo.processInfo.operatingSystemVersionString, privacy: .public)")
         let runtime = RuntimeState()
         let bridge = VirtualCameraBridge { running in
             Task { @MainActor in runtime.isSourceRunning = running }
@@ -57,6 +64,7 @@ private struct MenuContent: View {
             Label("Tracking: \(error)", systemImage: "exclamationmark.triangle")
             Divider()
         }
+        Text("vutusi \(appVersion)")
         Text("Camera: \(runtime.isSourceRunning ? "in use" : "idle")")
         Text("Model: \(avatar.status)")
         Divider()
