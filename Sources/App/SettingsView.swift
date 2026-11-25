@@ -170,6 +170,7 @@ struct SettingsView: View {
                 Toggle("Open at Login", isOn: openAtLogin)
             }
             HStack {
+                Button("Save Logs…") { saveLogs() }
                 Spacer()
                 Button("Reset to Defaults") { avatar.resetSettings() }
             }

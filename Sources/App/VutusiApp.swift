@@ -1,9 +1,12 @@
 import SwiftUI
 import os
 
-private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "App")
+let logSubsystem = "com.kawarimidoll.vutusi"
+private let logger = Logger(subsystem: logSubsystem, category: "App")
 
 let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+/// Heads a problem report: logged at launch and written first in saved logs.
+let systemSummary = "vutusi \(appVersion) on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"
 
 @main
 struct VutusiApp: App {
@@ -12,8 +15,7 @@ struct VutusiApp: App {
     @State private var avatar: AvatarController
 
     init() {
-        // For problem reports, which attach these logs.
-        logger.info("vutusi \(appVersion, privacy: .public) on macOS \(ProcessInfo.processInfo.operatingSystemVersionString, privacy: .public)")
+        logger.info("\(systemSummary, privacy: .public)")
         let runtime = RuntimeState()
         let bridge = VirtualCameraBridge { running in
             Task { @MainActor in runtime.isSourceRunning = running }
