@@ -1,6 +1,6 @@
 # Build, sign, notarize, and publish a vutusi release. Manual trigger only: a
 # dispatch cuts a date-based CalVer tag (YYYY.MMDD.N), builds from
-# source in this public run, attests the zip's provenance, and publishes it as the
+# source in this public run, attests the disk image's provenance, and publishes it as the
 # release asset.
 #
 # Required repository secrets:
@@ -105,14 +105,14 @@ jobs:
           ./scripts/release.sh
           ./scripts/notarize.sh | tee "$RUNNER_TEMP/notarize.log"
           rm -f "$VUTUSI_ASC_KEY_PATH"
-          ZIP="$GITHUB_WORKSPACE/$(tail -1 "$RUNNER_TEMP/notarize.log" | sed 's/^notarize.sh: //')"
-          test -f "$ZIP"
-          echo "zip=${ZIP}" >> "$GITHUB_OUTPUT"
+          DMG="$GITHUB_WORKSPACE/$(tail -1 "$RUNNER_TEMP/notarize.log" | sed 's/^notarize.sh: //')"
+          test -f "$DMG"
+          echo "dmg=${DMG}" >> "$GITHUB_OUTPUT"
 
       - name: Attest build provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: ${{ steps.build.outputs.zip }}
+          subject-path: ${{ steps.build.outputs.dmg }}
 
       # The tag is created with the release, after everything above succeeded, so a
       # failed run leaves no tag behind.
@@ -120,11 +120,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.ver.outputs.version }}
-          ZIP: ${{ steps.build.outputs.zip }}
+          DMG: ${{ steps.build.outputs.dmg }}
           NOTE: ${{ inputs.note }}
         run: |
           set -euo pipefail
-          gh release create "$VERSION" "$ZIP" \
+          gh release create "$VERSION" "$DMG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "$VERSION" \

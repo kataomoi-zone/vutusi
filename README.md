@@ -8,7 +8,7 @@ Requires macOS 15 or later. The face, body and hand tracking runs [animovi](http
 
 ## Install
 
-1. Download `vutusi-<version>.zip` from [Releases](https://github.com/kataomoi-zone/vutusi/releases), unzip it, and move `vutusi.app` to `/Applications`.
+1. Download `vutusi-<version>.dmg` from [Releases](https://github.com/kataomoi-zone/vutusi/releases), open it, and drag `vutusi.app` onto `Applications`.
 2. Open vutusi. Approve the camera extension when macOS asks (System Settings > General > Login Items & Extensions > Camera Extensions).
 3. From the menu bar icon, choose Add Model… and pick a `.vrm` file.
 4. Choose `vutusi Camera` as the camera in Google Meet, Slack, or another video app, and allow camera access when macOS asks.
@@ -58,13 +58,13 @@ systemextensionsctl list          # expect [activated enabled] for com.kawarimid
 
 ## Release
 
-Releases are built by the `release` workflow (Actions > release > Run workflow), which tags the commit with a date-based version and publishes the notarized zip. Its required secrets are listed at the top of `.github/workflows/release.yml`.
+Releases are built by the `release` workflow (Actions > release > Run workflow), which tags the commit with a date-based version and publishes the notarized disk image. Its required secrets are listed at the top of `.github/workflows/release.yml`.
 
 To build one locally:
 
 ```sh
 scripts/release.sh    # Developer ID-signed build/release/vutusi.app
-scripts/notarize.sh   # notarize, staple, and zip as build/release/vutusi-<version>.zip
+scripts/notarize.sh   # notarize, staple, and pack as build/release/vutusi-<version>.dmg
 ```
 
 One-time setup, because Release builds sign manually (an API key cannot use cloud-managed Developer ID certificates):
