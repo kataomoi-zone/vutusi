@@ -82,4 +82,4 @@ One-time setup, because Release builds sign manually (an API key cannot use clou
    | App ID | Profile name |
    |---|---|
    | `com.kawarimidoll.vutusi` | `vutusi Developer ID` |
-   | `com.kawarimidoll.vutusi.CameraExtension` | `Vutusi Camera Extension Developer ID` |
+   | `com.kawarimidoll.vutusi.CameraExtension` | `vutusi Camera Extension Developer ID` |
