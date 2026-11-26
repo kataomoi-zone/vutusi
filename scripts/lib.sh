@@ -26,3 +26,7 @@ xcodegen_generate() {
     nix shell nixpkgs#xcodegen -c xcodegen generate --quiet
   fi
 }
+
+# The Camera Extension's own files. A build's CFBundleVersion is derived from them, so
+# that the installed extension is replaced only when it changed.
+extension_paths=(Sources/CameraExtension Sources/Shared Resources/CameraExtension)

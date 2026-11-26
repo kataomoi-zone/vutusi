@@ -8,9 +8,10 @@
 # Automatic signing cannot be used: it signs with a cloud-managed Developer ID
 # certificate, which only the Account Holder may use, not an API key.
 #
-# CFBundleVersion is the time of the last commit to the Camera Extension's files (the
-# ones scripts/dev.sh watches), so an update replaces the installed extension only when
-# it changed: open video apps lose the camera after a replacement until they restart.
+# CFBundleVersion is the time of the last commit to the Camera Extension's files or to
+# project.yml, which holds its build settings, so an update replaces the installed
+# extension only when it changed: open video apps lose the camera after a replacement
+# until they restart.
 # The app's CFBundleShortVersionString is $VERSION when set (CI passes the release
 # tag), else project.yml's MARKETING_VERSION; the extension's is fixed in its Info.plist.
 
@@ -26,7 +27,10 @@ xcodegen_generate
 
 out=build/release
 mkdir -p "$out"
-version_settings=(CURRENT_PROJECT_VERSION="$(git log -1 --format=%ct -- Sources/CameraExtension Sources/Shared Resources/CameraExtension)")
+extension_version="$(git log -1 --format=%ct -- "${extension_paths[@]}" project.yml)"
+# Empty outside a git repository; the build would then carry no version at all.
+[[ -n "$extension_version" ]] || { echo "release.sh: no commit found for the extension's files" >&2; exit 1; }
+version_settings=(CURRENT_PROJECT_VERSION="$extension_version")
 [[ -n "${VERSION:-}" ]] && version_settings+=(MARKETING_VERSION="$VERSION")
 
 run() {

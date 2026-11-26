@@ -37,7 +37,7 @@ log_file=build/xcodebuild.log
 # project.yml is left out because app-only edits there are common; after changing the
 # extension target's build settings, touch a file under Resources/CameraExtension.
 # macOS's own stat by path: a GNU stat earlier on PATH takes other flags.
-version="$(find Sources/CameraExtension Sources/Shared Resources/CameraExtension -type f -exec /usr/bin/stat -f %m {} + | sort -n | tail -1)"
+version="$(find "${extension_paths[@]}" -type f -exec /usr/bin/stat -f %m {} + | sort -n | tail -1)"
 echo "dev.sh: building (full log: $log_file)"
 if ! xcodebuild \
   -project vutusi.xcodeproj -scheme vutusi -configuration Debug \
