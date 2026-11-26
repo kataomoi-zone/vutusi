@@ -145,6 +145,8 @@ final class AvatarRenderer {
         timer?.invalidate()
         timer = nil
         guard running else { return }
+        // Not the idle time since the last run, which would count into the first rate logged.
+        stats = TrackingStats()
         let interval = 1.0 / Double(CameraIdentifiers.frameRate)
         let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.renderFrame(deltaTime: interval) }
@@ -308,7 +310,7 @@ private struct TrackingStats {
     private mutating func flushIfDue() {
         let elapsed = ContinuousClock.now - start
         guard elapsed >= .seconds(5) else { return }
-        let rate = String(format: "%.1f", Double(results) / Double(elapsed.components.seconds))
+        let rate = String(format: "%.1f", Double(results) / (elapsed / .seconds(1)))
         let detected = [face, pose, left, right].map { $0 * 100 / results }
         let sorted = totalsMs.sorted()
         let median = sorted.isEmpty ? 0 : Int(sorted[sorted.count / 2])
