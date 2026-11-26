@@ -5,6 +5,7 @@ let package = Package(
     name: "posecheck",
     platforms: [.macOS(.v15)],
     dependencies: [
+        // The app's revision (project.yml); change both together.
         .package(url: "https://github.com/tattn/VRMKit.git", revision: "1afe8811370d05d50367a226bc069c3ab62fd8f2"),
     ],
     targets: [

@@ -22,6 +22,7 @@ settings:
       CODE_SIGN_IDENTITY: Developer ID Application
 packages:
   VRMKit:
+    # spikes/posecheck/Package.swift pins the same revision; change both together.
     url: https://github.com/tattn/VRMKit
     revision: 1afe8811370d05d50367a226bc069c3ab62fd8f2
 targets:
