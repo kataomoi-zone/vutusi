@@ -117,7 +117,8 @@ final class TrackingApplier {
     ///
     /// The ranges come from one user holding each state: eyes read
     /// about 0.35 open and 0.20 closed, since the landmarks never meet. The mouth reads
-    /// 0.56 wide at rest and 0.32 to 0.42 rounded.
+    /// 0.56 wide at rest, 0.32 to 0.42 rounded and 0.72 to 0.86 smiling. The solver's own
+    /// smile is a share of the image width, which a face at desk distance never reaches.
     /// LIMITATION: fixed ranges for every face; adaptive calibration if they prove personal.
     private static func expressions(from metrics: [String: Float]) -> [String: Float] {
         func scale(_ name: String, from low: Float, to high: Float) -> Float {
@@ -142,6 +143,9 @@ final class TrackingApplier {
             "aa": open * (1 - round),
             "oh": open * round,
             "ou": (1 - open) * round,
+            // A model's happy face usually narrows the eyes too, so it starts above a mouth
+            // that is merely widened (up to 0.70) and is full only at a clear smile.
+            "happy": scale("mouthWidth", from: 0.70, to: 0.86),
         ]
     }
 
