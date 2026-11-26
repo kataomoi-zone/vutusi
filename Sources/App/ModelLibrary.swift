@@ -31,6 +31,8 @@ struct ModelLibrary {
         // Adding the library's own copy, picked from its folder, changes nothing.
         guard source.standardizedFileURL != destination.standardizedFileURL else { return name }
         let temporary = directory.appending(path: ".\(UUID().uuidString).tmp")
+        // Gone already after a successful move; otherwise a failed step would leave it behind.
+        defer { try? fileManager.removeItem(at: temporary) }
         try fileManager.copyItem(at: source, to: temporary)
         if fileManager.fileExists(atPath: destination.path) {
             _ = try fileManager.replaceItemAt(destination, withItemAt: temporary)
