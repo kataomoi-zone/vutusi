@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sample whole-machine load every 5 seconds for 30 seconds: CPU (user + sys),
+# Sample whole-machine load six times over about half a minute: CPU (user + sys),
 # GPU utilization, and memory in use. Whole-machine numbers compare setups fairly
 # when the video app (e.g. Chrome running Meet) is part of both.
 #

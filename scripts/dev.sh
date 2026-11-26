@@ -2,9 +2,7 @@
 # Build a signed Debug vutusi.app, install it to /Applications, and launch it.
 #
 # The app activates its Camera Extension on launch, and sysextd replaces the
-# installed extension only when CFBundleVersion differs. The version is the
-# newest modification time among the extension's files, so a run replaces the
-# extension exactly when it changed.
+# installed extension only when CFBundleVersion differs (see `version` below).
 #
 # A running process keeps the CoreMediaIO device list it saw at launch, so the
 # app that replaced the extension never sees the new device. Once the new
