@@ -13,7 +13,7 @@ Requires macOS 15 or later. The face, body and hand tracking runs [animovi](http
 3. From the menu bar icon, choose Add Model… and pick a `.vrm` file.
 4. Choose `Vutusi Camera` as the camera in Google Meet, Slack, or another video app, and allow camera access when macOS asks.
 
-An update sometimes replaces the camera extension. If `Vutusi Camera` is missing afterwards, quit and reopen Vutusi and the video app.
+An update sometimes replaces the camera extension. If `Vutusi Camera` is missing afterwards, quit and reopen the video app.
 
 Settings… in the menu bar opens a live preview with the tracking, framing, light and background settings.
 
@@ -53,10 +53,9 @@ On the first launch, approve the extension in System Settings > General > Login 
 systemextensionsctl list          # expect [activated enabled] for com.kawarimidoll.vutusi.CameraExtension
 ```
 
-- Stuck or stale extension: choose Uninstall and then Install under Camera Extension in Settings…, then quit and relaunch Vutusi.
-- A running process keeps the camera list it saw at launch, so after the extension is replaced or reinstalled, relaunch Vutusi and any open video app. `scripts/dev.sh` relaunches Vutusi itself.
+- Stuck or stale extension: choose Uninstall and then Install under Camera Extension in Settings….
+- A running process keeps the camera list it saw at launch, so after the extension is replaced or reinstalled, relaunch any open video app (Chrome and Slack included). Vutusi relaunches itself once a new process can see the camera; if Camera Extension in Settings… shows a failure instead, quit and reopen Vutusi.
 - Still stuck: `systemextensionsctl reset` (removes all third-party system extensions; requires SIP to be disabled on recent macOS) or reboot.
-- Chrome and Slack cache the camera list; restart them after replacing the extension.
 
 ## Release
 

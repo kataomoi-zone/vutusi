@@ -85,14 +85,7 @@ final class VirtualCameraBridge: @unchecked Sendable {
     }
 
     private func discover() {
-        let system = CMIOObjectID(kCMIOObjectSystemObject)
-        let devices = cmioArray(system, CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices))
-        guard let device = devices.first(where: {
-            cmioString($0, CMIOObjectPropertySelector(kCMIODevicePropertyDeviceUID)) == CameraIdentifiers.deviceID.uuidString
-        }) else {
-            logger.debug("device not found among \(devices.count) devices")
-            return
-        }
+        guard let device = virtualCameraDevice() else { return }
         let streams = cmioArray(device, CMIOObjectPropertySelector(kCMIODevicePropertyStreams))
         guard let sink = streams.first(where: {
             cmioString($0, CMIOObjectPropertySelector(kCMIOObjectPropertyName)) == CameraIdentifiers.sinkStreamName
@@ -164,6 +157,13 @@ final class VirtualCameraBridge: @unchecked Sendable {
             sampleTiming: &timing, sampleBufferOut: &sampleBuffer) == noErr,
             let sampleBuffer else { return }
         CMSimpleQueueEnqueue(sinkQueue, element: Unmanaged.passRetained(sampleBuffer).toOpaque())
+    }
+}
+
+/// The Camera Extension's device as this process sees it.
+func virtualCameraDevice() -> CMIOObjectID? {
+    cmioArray(CMIOObjectID(kCMIOObjectSystemObject), CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices)).first {
+        cmioString($0, CMIOObjectPropertySelector(kCMIODevicePropertyDeviceUID)) == CameraIdentifiers.deviceID.uuidString
     }
 }
 

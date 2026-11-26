@@ -4,9 +4,8 @@
 # The app activates its Camera Extension on launch, and sysextd replaces the
 # installed extension only when CFBundleVersion differs (see `version` below).
 #
-# A running process keeps the CoreMediaIO device list it saw at launch, so the
-# app that replaced the extension never sees the new device. Once the new
-# version is active, the app is launched again to pick it up.
+# The app relaunches itself after replacing the extension, so the script only waits
+# for the new version to be active.
 #
 # The script exits after launch instead of tailing logs so it can run from a
 # non-interactive shell; it prints recent logs and the extension state, and
@@ -84,12 +83,7 @@ for _ in $(seq 1 30); do
   extension_active && break
   sleep 1
 done
-if extension_active; then
-  quit_app
-  launch_app
-else
-  echo "dev.sh: extension $version is not active yet (approve it in System Settings, then relaunch Vutusi)"
-fi
+extension_active || echo "dev.sh: extension $version is not active yet (approve it in System Settings)"
 
 sleep 3
 log show --last 40s --info --style compact --predicate 'subsystem == "com.kawarimidoll.vutusi"'

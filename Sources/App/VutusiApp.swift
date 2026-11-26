@@ -8,6 +8,17 @@ let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionS
 let systemSummary = "Vutusi \(appVersion) on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"
 
 @main
+enum Main {
+    static func main() {
+        // Run as a probe (see ExtensionInstaller): only reports whether a process started
+        // now sees the camera.
+        if CommandLine.arguments.contains(ExtensionInstaller.probeArgument) {
+            exit(virtualCameraDevice() != nil ? 0 : 1)
+        }
+        VutusiApp.main()
+    }
+}
+
 struct VutusiApp: App {
     @State private var installer = ExtensionInstaller()
     @State private var runtime: RuntimeState
