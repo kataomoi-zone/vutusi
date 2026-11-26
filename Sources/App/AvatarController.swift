@@ -201,7 +201,14 @@ final class AvatarController {
         renderer?.light = light
         applyBackground()
         models = library.names()
-        loadModel()
+        // Selecting another model loads it, so only a model that is there is loaded here.
+        if models.contains(modelName) { loadModel() } else { selectFirstModelIfMissing() }
+    }
+
+    /// The selected model can be gone: removed here, or its file deleted from the library
+    /// folder since the name was saved. Neither picker has a row for a missing name.
+    private func selectFirstModelIfMissing() {
+        if !models.contains(modelName) { modelName = models.first ?? "" }
     }
 
     /// Granting access needs a relaunch (macOS offers one), so the status is read only at
@@ -243,7 +250,7 @@ final class AvatarController {
             status = "removing \(name) failed: \(error.localizedDescription)"
         }
         models = library.names()
-        if name == modelName { modelName = models.first ?? "" }
+        selectFirstModelIfMissing()
     }
 
     private func loadModel() {
