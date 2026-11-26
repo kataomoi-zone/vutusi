@@ -11,7 +11,7 @@ import UniformTypeIdentifiers
 func saveLogs() {
     let panel = NSSavePanel()
     // Local time without separators, e.g. vutusi-20261126T083805.log: no colons in a file name.
-    let stamp = ISO8601DateFormatter.string(from: .now, timeZone: .current, formatOptions: [.withFullDate, .withTime])
+    let stamp = ISO8601DateFormatter.string(from: .now, timeZone: .current, formatOptions: [.withYear, .withMonth, .withDay, .withTime])
     panel.nameFieldStringValue = "vutusi-\(stamp).log"
     panel.allowedContentTypes = [.log]
     // A menu bar app is not active, so the panel would open behind other windows.
