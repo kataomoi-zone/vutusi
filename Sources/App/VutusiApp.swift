@@ -1,7 +1,6 @@
 import SwiftUI
 import os
 
-let logSubsystem = "com.kawarimidoll.vutusi"
 private let logger = Logger(subsystem: logSubsystem, category: "App")
 
 let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""

@@ -6,7 +6,7 @@ import Foundation
 import IOKit.audio
 import os
 
-let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "CameraExtension")
+let logger = Logger(subsystem: logSubsystem, category: "CameraExtension")
 
 /// Frames from the app arrive on the sink stream and go out unchanged on the source stream.
 /// While the app sends nothing, the source shows a static "waiting" frame.

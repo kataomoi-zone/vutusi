@@ -3,7 +3,7 @@ import AppKit
 import UniformTypeIdentifiers
 import os
 
-private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "AvatarController")
+private let logger = Logger(subsystem: logSubsystem, category: "AvatarController")
 
 /// Owns the renderer, the tracker that drives it, the model library and the settings,
 /// which are kept in UserDefaults.

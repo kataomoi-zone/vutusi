@@ -7,7 +7,7 @@ import RealityKit
 import VRMRealityKit
 import os
 
-private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "AvatarRenderer")
+private let logger = Logger(subsystem: logSubsystem, category: "AvatarRenderer")
 
 /// How much of the model the camera shows.
 struct Framing: Equatable {

@@ -3,7 +3,7 @@ import Observation
 import SystemExtensions
 import os
 
-private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "ExtensionInstaller")
+private let logger = Logger(subsystem: logSubsystem, category: "ExtensionInstaller")
 private let extensionID = "com.kawarimidoll.vutusi.CameraExtension"
 
 @MainActor

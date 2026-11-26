@@ -2,7 +2,7 @@ import CoreMediaIO
 import Foundation
 import os
 
-private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "VirtualCameraBridge")
+private let logger = Logger(subsystem: logSubsystem, category: "VirtualCameraBridge")
 
 /// Sends frames to the Camera Extension's sink stream, and reports whether a video app
 /// is showing the camera.

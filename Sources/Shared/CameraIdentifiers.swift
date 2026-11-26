@@ -1,5 +1,8 @@
 import Foundation
 
+/// The os.Logger subsystem of both processes; README and scripts/logs.sh filter on it.
+let logSubsystem = "com.kawarimidoll.vutusi"
+
 /// Identifiers shared by the app and the Camera Extension.
 enum CameraIdentifiers {
     // Meet / Slack remember the selected camera by these IDs, so they must stay fixed.

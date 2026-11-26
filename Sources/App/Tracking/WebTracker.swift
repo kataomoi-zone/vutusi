@@ -2,7 +2,7 @@ import AppKit
 import WebKit
 import os
 
-private let logger = Logger(subsystem: "com.kawarimidoll.vutusi", category: "WebTracker")
+private let logger = Logger(subsystem: logSubsystem, category: "WebTracker")
 
 /// Runs the tracking page (web/) in a WKWebView nobody sees, and hands each solver
 /// result to `onResult`.
