@@ -184,7 +184,7 @@ final class DeviceSource: NSObject, CMIOExtensionDeviceSource, @unchecked Sendab
             bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)!
         context.setFillColor(CGColor(gray: 0.15, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-        let text = NSAttributedString(string: "vutusi: waiting for the app", attributes: [
+        let text = NSAttributedString(string: "Vutusi: waiting for the app", attributes: [
             NSAttributedString.Key(kCTFontAttributeName as String): CTFontCreateWithName("Helvetica" as CFString, 40, nil),
             NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(gray: 0.7, alpha: 1),
         ])

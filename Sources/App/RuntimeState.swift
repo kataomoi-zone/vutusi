@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable
 final class RuntimeState {
-    /// A video app is showing vutusi Camera.
+    /// A video app is showing Vutusi Camera.
     var isSourceRunning = false { didSet { if isSourceRunning != oldValue { onChange?(self) } } }
 
     /// The settings window shows the preview.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build a Developer ID-signed vutusi.app into build/release/, ready for
+# Build a Developer ID-signed Vutusi.app into build/release/, ready for
 # scripts/notarize.sh.
 #
 # The Release configuration signs manually with the Developer ID certificate in the
@@ -75,6 +75,6 @@ run "$out/export.log" xcodebuild -exportArchive \
   -exportOptionsPlist "$out/ExportOptions.plist" \
   -exportPath "$out"
 
-codesign --verify --deep --strict "$out/vutusi.app"
-codesign -dvv "$out/vutusi.app" 2>&1 | grep -E "^Authority=Developer ID Application|^TeamIdentifier"
-echo "release.sh: $out/vutusi.app"
+codesign --verify --deep --strict "$out/Vutusi.app"
+codesign -dvv "$out/Vutusi.app" 2>&1 | grep -E "^Authority=Developer ID Application|^TeamIdentifier"
+echo "release.sh: $out/Vutusi.app"

@@ -19,7 +19,7 @@ final class WebTracker: NSObject, WKScriptMessageHandler, WKUIDelegate, WKNaviga
     /// Called with the page's message when tracking fails: the camera does not open or
     /// goes away, or the worker fails to start or to read a frame.
     var onError: ((String) -> Void)?
-    /// The camera to track, by name; empty picks the first camera other than vutusi Camera.
+    /// The camera to track, by name; empty picks the first camera other than Vutusi Camera.
     var cameraName = "" {
         didSet { if loaded { sendCameraName() } }
     }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Notarize build/release/vutusi.app (from scripts/release.sh), staple the ticket,
+# Notarize build/release/Vutusi.app (from scripts/release.sh), staple the ticket,
 # and pack it for distribution as build/release/vutusi-<version>.dmg.
 #
 # Submits to Apple's notary service twice, the app and then the disk image, each
@@ -18,7 +18,7 @@ source scripts/lib.sh
 require_asc_key
 key=(--key "$VUTUSI_ASC_KEY_PATH" --key-id "$VUTUSI_ASC_KEY_ID" --issuer "$VUTUSI_ASC_ISSUER")
 
-app=build/release/vutusi.app
+app=build/release/Vutusi.app
 [[ -d "$app" ]] || { echo "notarize.sh: $app not found; run scripts/release.sh first" >&2; exit 1; }
 codesign --verify --deep --strict "$app"
 signature="$(codesign -dvv "$app" 2>&1)"
@@ -61,9 +61,9 @@ spctl --assess --type execute --verbose=2 "$app"
 # The image shows the app next to a link to /Applications to drag it onto.
 staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT
-ditto "$app" "$staging/vutusi.app"
+ditto "$app" "$staging/Vutusi.app"
 ln -s /Applications "$staging/Applications"
-diskutil image create from --format UDZO --volumeName vutusi "$staging" "$dmg"
+diskutil image create from --format UDZO --volumeName Vutusi "$staging" "$dmg"
 codesign --sign "$identity" --timestamp "$dmg"
 submit "$dmg"
 xcrun stapler staple "$dmg"

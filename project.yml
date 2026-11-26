@@ -41,6 +41,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kawarimidoll.vutusi
+        # The app is Vutusi.app; the target, scheme and identifiers stay lowercase.
+        PRODUCT_NAME: Vutusi
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_FILE: Resources/App/Info.plist
         CODE_SIGN_ENTITLEMENTS: Resources/App/vutusi.entitlements

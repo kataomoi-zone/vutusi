@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>vutusi Camera</string>
+	<string>Vutusi Camera</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -28,6 +28,6 @@
 		<string>$(TeamIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	</dict>
 	<key>NSSystemExtensionUsageDescription</key>
-	<string>Lets video apps choose the vutusi avatar as a camera.</string>
+	<string>Lets video apps choose the Vutusi avatar as a camera.</string>
 </dict>
 </plist>

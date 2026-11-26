@@ -44,8 +44,8 @@ struct SettingsView: View {
         Form {
             if avatar.cameraAccessDenied {
                 Section {
-                    Label("vutusi cannot use the camera, so the avatar does not move. "
-                        + "Turn vutusi on in Privacy & Security > Camera, then let macOS reopen it.",
+                    Label("Vutusi cannot use the camera, so the avatar does not move. "
+                        + "Turn Vutusi on in Privacy & Security > Camera, then let macOS reopen it.",
                         systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                     Button("Open Privacy Settings…") { avatar.openCameraPrivacySettings() }
@@ -182,7 +182,7 @@ struct SettingsView: View {
     }
 
     /// Mirrors the system's login item rather than a setting of its own, read again each
-    /// time the window opens, so turning vutusi off in System Settings > General > Login
+    /// time the window opens, so turning Vutusi off in System Settings > General > Login
     /// Items shows here too.
     @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
 
@@ -214,7 +214,7 @@ struct SettingsView: View {
         }
     }
 
-    /// Cameras that can be tracked, leaving out vutusi Camera itself.
+    /// Cameras that can be tracked, leaving out Vutusi Camera itself.
     private static func physicalCameras() -> [String] {
         AVCaptureDevice.DiscoverySession(
             deviceTypes: [.builtInWideAngleCamera, .external, .continuityCamera],

@@ -5,7 +5,7 @@ private let logger = Logger(subsystem: logSubsystem, category: "App")
 
 let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
 /// Heads a problem report: logged at launch and written first in saved logs.
-let systemSummary = "vutusi \(appVersion) on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"
+let systemSummary = "Vutusi \(appVersion) on macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"
 
 @main
 struct VutusiApp: App {
@@ -31,7 +31,7 @@ struct VutusiApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("vutusi", systemImage: runtime.isActive ? "video.fill" : "video") {
+        MenuBarExtra("Vutusi", systemImage: runtime.isActive ? "video.fill" : "video") {
             MenuContent(runtime: runtime, avatar: avatar, installer: installer)
         }
         Settings {
@@ -65,7 +65,7 @@ private struct MenuContent: View {
             Label("Tracking: \(error)", systemImage: "exclamationmark.triangle")
             Divider()
         }
-        Text("vutusi \(appVersion)")
+        Text("Vutusi \(appVersion)")
         Text("Camera: \(runtime.isSourceRunning ? "in use" : "idle")")
         Text("Model: \(avatar.status)")
         Divider()
@@ -83,7 +83,7 @@ private struct MenuContent: View {
         }
         .keyboardShortcut(",")
         Divider()
-        Button("Quit vutusi") { NSApplication.shared.terminate(nil) }
+        Button("Quit Vutusi") { NSApplication.shared.terminate(nil) }
             .keyboardShortcut("q")
     }
 }

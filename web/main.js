@@ -48,13 +48,13 @@ function tick() {
 
 // The camera chosen in the settings, matched by name (Swift lists cameras with
 // AVFoundation, whose names WebKit uses as labels), else the first camera that is not
-// vutusi Camera: the default can be vutusi Camera itself, which then tracks the
+// Vutusi Camera: the default can be Vutusi Camera itself, which then tracks the
 // avatar's own image. Labels are only exposed after a first getUserMedia in the page.
 let preferredCamera = ''
 async function physicalCameraId() {
   const find = async () => {
     const cameras = (await navigator.mediaDevices.enumerateDevices()).filter(
-      (d) => d.kind === 'videoinput' && d.label && !d.label.startsWith('vutusi Camera'),
+      (d) => d.kind === 'videoinput' && d.label && !d.label.startsWith('Vutusi Camera'),
     )
     return cameras.find((d) => d.label === preferredCamera) ?? cameras[0]
   }
@@ -64,7 +64,7 @@ async function physicalCameraId() {
     probe.getTracks().forEach((t) => t.stop())
     device = await find()
   }
-  if (!device) throw new Error('no camera other than vutusi Camera')
+  if (!device) throw new Error('no camera other than Vutusi Camera')
   return device.deviceId
 }
 

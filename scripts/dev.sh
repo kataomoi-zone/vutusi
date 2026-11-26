@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build a signed Debug vutusi.app, install it to /Applications, and launch it.
+# Build a signed Debug Vutusi.app, install it to /Applications, and launch it.
 #
 # The app activates its Camera Extension on launch, and sysextd replaces the
 # installed extension only when CFBundleVersion differs (see `version` below).
@@ -52,12 +52,12 @@ if ! xcodebuild \
   exit 1
 fi
 
-app=/Applications/vutusi.app
+app=/Applications/Vutusi.app
 # LaunchServices fails with -600 when asked to open an app whose old process is still
 # exiting, so wait for it to be gone.
 quit_app() {
-  pkill -x vutusi || true
-  while pgrep -x vutusi > /dev/null; do sleep 0.2; done
+  pkill -x Vutusi || true
+  while pgrep -x Vutusi > /dev/null; do sleep 0.2; done
 }
 # Even then LaunchServices can still hold the old process for a moment and fail the same
 # way, so the open is retried.
@@ -71,7 +71,7 @@ launch_app() {
 
 quit_app
 rm -rf "$app"
-ditto build/DerivedData/Build/Products/Debug/vutusi.app "$app"
+ditto build/DerivedData/Build/Products/Debug/Vutusi.app "$app"
 launch_app
 
 extension_id=com.kawarimidoll.vutusi.CameraExtension
@@ -88,7 +88,7 @@ if extension_active; then
   quit_app
   launch_app
 else
-  echo "dev.sh: extension $version is not active yet (approve it in System Settings, then relaunch vutusi)"
+  echo "dev.sh: extension $version is not active yet (approve it in System Settings, then relaunch Vutusi)"
 fi
 
 sleep 3
