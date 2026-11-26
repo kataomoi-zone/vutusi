@@ -13,6 +13,8 @@ Requires macOS 15 or later. The face, body and hand tracking runs [animovi](http
 3. From the menu bar icon, choose Add Model… and pick a `.vrm` file.
 4. Choose `vutusi Camera` as the camera in Google Meet, Slack, or another video app, and allow camera access when macOS asks.
 
+An update sometimes replaces the camera extension. If `vutusi Camera` is missing afterwards, quit and reopen vutusi and the video app.
+
 Settings… in the menu bar opens a live preview with the tracking, framing, light and background settings.
 
 ## Reporting problems

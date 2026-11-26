@@ -37,7 +37,7 @@ final class ExtensionInstaller: NSObject {
     }
 
     /// Activates right away, which installs the extension on first launch and replaces an
-    /// installed one of another version (each `scripts/dev.sh` run, each update).
+    /// installed one of another version (a build whose extension files changed).
     override init() {
         super.init()
         activate()
