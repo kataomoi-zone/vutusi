@@ -40,6 +40,8 @@ final class AvatarController {
     /// The camera to track by name; empty picks one automatically.
     var cameraName = UserDefaults.standard.string(forKey: "cameraName") ?? "" {
         didSet {
+            // Setting the tracker's camera reopens it, so an unchanged name is left alone.
+            guard cameraName != oldValue else { return }
             UserDefaults.standard.set(cameraName, forKey: "cameraName")
             tracker?.cameraName = cameraName
         }
