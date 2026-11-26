@@ -85,12 +85,11 @@ jobs:
           # shellcheck disable=SC2046
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           rm -f "$CERT_PATH"
-          # Where xcodebuild looks for profiles; older Xcode reads the MobileDevice one.
-          for dir in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" "$HOME/Library/MobileDevice/Provisioning Profiles"; do
-            mkdir -p "$dir"
-            echo "$APP_PROFILE_BASE64" | base64 --decode > "$dir/vutusi.provisionprofile"
-            echo "$EXTENSION_PROFILE_BASE64" | base64 --decode > "$dir/vutusi-camera-extension.provisionprofile"
-          done
+          # Where xcodebuild looks for profiles (README: Release).
+          dir="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$dir"
+          echo "$APP_PROFILE_BASE64" | base64 --decode > "$dir/vutusi.provisionprofile"
+          echo "$EXTENSION_PROFILE_BASE64" | base64 --decode > "$dir/vutusi-camera-extension.provisionprofile"
 
       - name: Build, sign, notarize
         id: build
