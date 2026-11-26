@@ -132,7 +132,7 @@ final class AvatarController {
         do {
             try setBackgroundImage(copying: url)
         } catch {
-            status = "background image failed: \(error.localizedDescription)"
+            NSAlert(error: error).runModal()
         }
     }
 
@@ -166,7 +166,11 @@ final class AvatarController {
                 try renderer.setBackgroundImage(URL(fileURLWithPath: backgroundImagePath))
                 return
             } catch {
-                status = "background image failed: \(error.localizedDescription)"
+                // Falls back to the color below, and forgets the image so that Settings does
+                // not show one that is not there. Logged rather than put in `status`, which
+                // is the model's line in the menu.
+                logger.error("background image failed: \(error.localizedDescription, privacy: .public)")
+                backgroundImagePath = ""
             }
         }
         let c = backgroundColor
@@ -229,13 +233,16 @@ final class AvatarController {
         NSApp.activate()
         guard panel.runModal() == .OK else { return }
         var added: String?
+        var failure: (any Error)?
         for url in panel.urls {
             do {
                 added = try library.add(url)
             } catch {
-                status = "adding \(url.lastPathComponent) failed: \(error.localizedDescription)"
+                failure = error
             }
         }
+        // One alert for the selection, not one for each file that failed.
+        if let failure { NSAlert(error: failure).runModal() }
         models = library.names()
         if let added {
             if added == modelName { loadModel() } else { modelName = added }
@@ -247,7 +254,7 @@ final class AvatarController {
         do {
             try library.remove(name)
         } catch {
-            status = "removing \(name) failed: \(error.localizedDescription)"
+            NSAlert(error: error).runModal()
         }
         models = library.names()
         selectFirstModelIfMissing()
