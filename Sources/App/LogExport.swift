@@ -19,9 +19,9 @@ func saveLogs() {
     guard panel.runModal() == .OK, let url = panel.url else { return }
     do {
         let store = try OSLogStore(scope: .currentProcessIdentifier)
-        let lines = try store.getEntries()
+        // Filtered by the store: the process also logs for WebKit and RealityKit.
+        let lines = try store.getEntries(matching: NSPredicate(format: "subsystem == %@", logSubsystem))
             .compactMap { $0 as? OSLogEntryLog }
-            .filter { $0.subsystem == logSubsystem }
             .map { "\($0.date.ISO8601Format()) [\($0.category)] \($0.composedMessage)" }
         try ([systemSummary] + lines).joined(separator: "\n").appending("\n")
             .write(to: url, atomically: true, encoding: .utf8)
