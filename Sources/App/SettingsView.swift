@@ -172,7 +172,10 @@ struct SettingsView: View {
             HStack {
                 Button("Save Logs…") { saveLogs() }
                 Spacer()
-                Button("Reset to Defaults") { avatar.resetSettings() }
+                Button("Reset to Defaults") {
+                    avatar.resetSettings()
+                    mirrorPreview = false
+                }
             }
         }
         .formStyle(.grouped)
