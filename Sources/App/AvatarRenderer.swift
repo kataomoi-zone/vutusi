@@ -42,7 +42,7 @@ final class AvatarRenderer {
     private var model: VRMEntity?
     private var applier: TrackingApplier?
     /// 0 (none) to 1; see TrackingApplier.smoothing.
-    var smoothing: Float = 0.5 {
+    var smoothing = TrackingApplier.defaultSmoothing {
         didSet { applier?.smoothing = smoothing }
     }
     var trackedParts = Set(TrackingPart.allCases) {

@@ -20,8 +20,10 @@ enum TrackingPart: String, CaseIterable {
 /// and VRMKit's own VRMA retargeting do.
 @MainActor
 final class TrackingApplier {
+    /// animovi's default.
+    static let defaultSmoothing: Float = 0.5
     /// 0 (none) to 1. Filter responsiveness is 1 - smoothing, at least 0.1.
-    var smoothing: Float = 0.5
+    var smoothing = defaultSmoothing
     /// Parts left out are eased to rest instead of following the camera.
     var trackedParts = Set(TrackingPart.allCases)
 

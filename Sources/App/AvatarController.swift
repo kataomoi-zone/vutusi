@@ -45,7 +45,7 @@ final class AvatarController {
         }
     }
 
-    var smoothing = UserDefaults.standard.object(forKey: "smoothing") as? Float ?? AvatarController.defaultSmoothing {
+    var smoothing = UserDefaults.standard.object(forKey: "smoothing") as? Float ?? TrackingApplier.defaultSmoothing {
         didSet {
             UserDefaults.standard.set(smoothing, forKey: "smoothing")
             renderer?.smoothing = smoothing
@@ -111,13 +111,11 @@ final class AvatarController {
         }
     }
 
-    /// animovi's default.
-    static let defaultSmoothing: Float = 0.5
     static let defaultBackgroundColor: [Float] = [0.2, 0.6, 0.4]
 
     func resetSettings() {
         cameraName = ""
-        smoothing = Self.defaultSmoothing
+        smoothing = TrackingApplier.defaultSmoothing
         trackedParts = Set(TrackingPart.allCases)
         framing = Framing()
         light = Light()
